@@ -1,4 +1,7 @@
 spring:
+  application:
+    name: imitrade
+
   datasource:
     url: jdbc:postgresql://localhost:5432/imitrade
     username: imitrade
@@ -17,3 +20,24 @@ spring:
   flyway:
     locations: classpath:db/migration
     baseline-on-migrate: true
+
+# ============================================================================
+# Application configuration
+# ============================================================================
+app:
+  security:
+    jwt:
+      # MUST be overridden in production via environment variable / external config
+      secret-key: ${APP_JWT_SECRET:YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkw}
+      # Access token lifetime in milliseconds (default = 24h)
+      access-token-ttl: ${APP_JWT_TTL:86400000}
+      issuer: imitrade
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+server:
+  port: 8080
