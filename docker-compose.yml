@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: imitrade-postgres
+    environment:
+      POSTGRES_DB: imitrade
+      POSTGRES_USER: imitrade
+      POSTGRES_PASSWORD: imitrade
+    ports:
+      - "5432:5432"
+    volumes:
+      - imitrade-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U imitrade -d imitrade" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  imitrade-pgdata:
