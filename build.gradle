@@ -17,6 +17,10 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    jjwtVersion = '0.12.6'
+}
+
 dependencies {
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -35,8 +39,18 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+    // JWT (stateless auth)
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // OpenAPI / Swagger UI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+    // ---- test scope ----
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'com.h2database:h2'
 }
 
 test {
