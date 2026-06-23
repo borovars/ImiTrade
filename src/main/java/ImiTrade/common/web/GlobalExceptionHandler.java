@@ -2,6 +2,7 @@ package ImiTrade.common.web;
 
 import ImiTrade.common.exception.EmailAlreadyExistsException;
 import ImiTrade.common.exception.InvalidCredentialsException;
+import ImiTrade.common.exception.StockNotFoundException;
 import ImiTrade.common.exception.UsernameAlreadyExistsException;
 import ImiTrade.common.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +65,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleUserNotFound(UserNotFoundException ex,
                                                           HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, "USER_NOT_FOUND",
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(StockNotFoundException.class)
+    public ResponseEntity<ApiResponse> handleStockNotFound(StockNotFoundException ex,
+                                                           HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ErrorCodes.STOCK_NOT_FOUND,
                 ex.getMessage(), request, null);
     }
 
