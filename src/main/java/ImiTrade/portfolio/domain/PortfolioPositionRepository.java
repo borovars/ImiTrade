@@ -3,6 +3,7 @@ package ImiTrade.portfolio.domain;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -15,4 +16,7 @@ public interface PortfolioPositionRepository extends JpaRepository<PortfolioPosi
 
     /** Finds the user's position for a given stock, if any. */
     Optional<PortfolioPosition> findByUserIdAndStockId(Long userId, Long stockId);
+
+    /** Returns all current positions for the given user (read-only portfolio view). */
+    List<PortfolioPosition> findByUserId(Long userId);
 }
