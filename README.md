@@ -10,6 +10,9 @@ Trading-platform backend. Spring Boot 3.5 / Java 25 / PostgreSQL / Flyway.
 | `user`     | Current-user profile (`GET /api/v1/users/me`)                     |
 | `security` | Stateless JWT auth, BCrypt, Spring Security 6 filter chain         |
 | `common`   | Shared error envelope, exception handling                          |
+| `stocks`   | Read-only catalog: `GET /api/v1/stocks` (paginated, ticker/companyName filters), `GET /api/v1/stocks/{id}` |
+| `trading`  | Buy/sell: `POST /api/v1/trades/buy`, `POST /api/v1/trades/sell`     |
+| `portfolio`| Current holdings + live PnL: `GET /api/v1/portfolio`               |
 
 ## Authentication model
 
@@ -38,6 +41,41 @@ app:
       access-token-ttl: ${APP_JWT_TTL:86400000}    # ms (24h by default)
       issuer: imitrade
 ```
+
+## Trading & Portfolio
+
+### Stocks
+
+Six stocks (AAPL, MSFT, NVDA, AMZN, TSLA, GOOGL) are seeded by Flyway and
+read-only — `current_price` drives all buy/sell trades.
+
+### Buy (`POST /api/v1/trades/buy`)
+
+1. Validates `quantity` > 0.
+2. Checks user balance ≥ `current_price` × `quantity`.
+3. Appends a **BUY** transaction.
+4. Upserts the portfolio position — **weighted-average price**:
+   `(oldQty × oldAvg + buyQty × price) / (oldQty + buyQty)`.
+5. Debits balance.
+
+### Sell (`POST /api/v1/trades/sell`)
+
+1. Validates `quantity` > 0.
+2. Checks a position exists for the stock + enough shares.
+3. Appends a **SELL** transaction.
+4. Decrements position quantity; deletes the position when quantity reaches 0.
+5. Credits balance.
+
+### Portfolio (`GET /api/v1/portfolio`)
+
+Read-only view of current holdings. **Unrealized PnL** is computed per request:
+
+```
+PnL = (currentPrice − averagePrice) × quantity    scale 4, HALF_UP
+```
+
+PnL is never persisted — it is recalculated from live `current_price` on every
+call. An empty portfolio returns `200 []`.
 
 ## Run
 
@@ -75,6 +113,27 @@ Once the app is running:
    - `POST /api/v1/auth/login` with a wrong password → `401 INVALID_CREDENTIALS`.
    - `POST /api/v1/auth/register` with a duplicate email → `409 EMAIL_ALREADY_EXISTS`.
 
+6. **List stocks** — `GET /api/v1/stocks` → `200` paginated list of all
+   stocks with `ticker`, `companyName`, `exchange`, `currentPrice`.
+
+7. **Buy stock** — `POST /api/v1/trades/buy`
+   ```json
+   { "stockId": 1, "quantity": 5 }
+   ```
+   Response → `200` with `{ "transactionId", "stockTicker", "type": "BUY", "quantity", "price", "totalAmount" }`.
+
+8. **View portfolio** — `GET /api/v1/portfolio` → `200` with positions
+   including `averagePrice`, `currentPrice`, and computed `pnl`.
+
+9. **Sell stock** — `POST /api/v1/trades/sell`
+   ```json
+   { "stockId": 1, "quantity": 3 }
+   ```
+   Response → `200` with a `SELL` trade response.
+
+10. **Negative: insufficient balance** — `POST /api/v1/trades/buy` with a
+    quantity whose total exceeds the remaining balance → `400 INSUFFICIENT_BALANCE`.
+
 ## Tests
 
 ```bash
@@ -88,6 +147,18 @@ Once the app is running:
 | `AuthServiceTest`        | Unit         | Register/login happy path, bad password, unknown user, conflict         |
 | `AuthIntegrationTest`    | Integration  | Register/login via MockMvc + H2, duplicate email/username, hashing, 400 |
 | `SecurityAccessTest`     | Security     | Public/protected matrix, 401 without/with-invalid JWT, 200 with JWT      |
+| `StockServiceTest`        | Unit         | Paginated listing, ticker/companyName filters, not-found                  |
+| `StockRepositoryTest`    | Unit         | JPA specification queries                                                |
+| `StockControllerTest`    | Unit         | MockMvc stock endpoints                                                   |
+| `StockSecurityTest`       | Security     | Stock endpoints require JWT                                               |
+| `TradeServiceTest`        | Unit         | Buy/sell happy path, all error branches                                   |
+| `TradeIntegrationTest`    | Integration  | Buy/sell via MockMvc + PostgreSQL (Testcontainers)                        |
+| `TradeSecurityTest`       | Security     | Trade endpoints require JWT                                               |
+| `PortfolioPositionRepositoryTest` | Unit | `findByUserId`, `findByUserIdAndStockId`                       |
+| `PortfolioServiceTest`    | Unit         | PnL computation, empty portfolio                                          |
+| `PortfolioControllerTest` | Unit         | MockMvc portfolio endpoint                                                |
+| `PortfolioIntegrationTest` | Integration | Full buy → portfolio read flow (Testcontainers)                            |
+| `PortfolioSecurityTest`   | Security     | Portfolio endpoint requires JWT                                           |
 
 Integration/security tests use the **real security layer** (no mocking) and an
 **in-memory H2** (PostgreSQL compatibility mode) via the `test` profile.

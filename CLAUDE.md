@@ -6,9 +6,10 @@ Users receive virtual money and can buy and sell stocks.
 The system maintains portfolios and transaction history.
 
 Current state:
-- Authentication is implemented
-- Stock catalog is implemented (read-only)
-- Portfolio and trading functionality are not implemented yet
+- Authentication (register/login) ✓
+- Stock catalog (read-only) ✓
+- Trading (buy/sell) ✓
+- Portfolio (read view with live PnL) ✓
 
 Main business entities:
 - User
@@ -54,6 +55,16 @@ src/main/java/ImiTrade/
 │   ├── web/StockController.java
 │   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java
 │   └── dto/StockResponse.java
+├── transaction/                 # Transaction aggregate (entity + repo + enum)
+│   └── domain/Transaction.java, TransactionRepository.java, TransactionType.java
+├── trading/                     # Buy/sell orchestration
+│   ├── web/TradeController.java
+│   ├── domain/TradeService.java
+│   └── dto/BuyStockRequest.java, SellStockRequest.java, TradeResponse.java
+├── portfolio/                   # Holdings read model
+│   ├── web/PortfolioController.java
+│   ├── domain/PortfolioService.java, PortfolioPosition.java, PortfolioPositionRepository.java
+│   └── dto/PortfolioResponse.java
 ├── security/                    # JWT infrastructure
 │   ├── SecurityFilterChainConfig.java
 │   ├── JwtService.java, JwtProperties.java
@@ -76,7 +87,9 @@ Each feature module follows a strict **3-layer** pattern:
 └── dto/         # Java records for request/response — never expose entities directly
 ```
 
-Cross-module dependencies flow **inward**: controllers → services → repositories. A service in one module may call services in other modules (e.g., `AuthService` → `UserService`). Controllers never call other controllers.
+Cross-module dependencies flow **inward**: controllers → services → repositories. A service in one module may call services in other modules (e.g., `AuthService` → `UserService`, `TradeService` → `UserService` + `StockService`). Controllers never call other controllers.
+
+The `transaction/` package holds the Transaction entity, repository, and enum; the buy/sell orchestration logic lives in `trading/`. This separation keeps the write model (transaction) distinct from the application service (trade).
 
 ### Package Naming
 
@@ -89,18 +102,21 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 
 | Table               | Purpose                        |
 |---------------------|--------------------------------|
-| `users`             | User accounts, balance, auth   |
-| `stocks`            | Read-only stock catalog        |
-| `portfolio_positions`| User stock holdings (todo)     |
-| `transactions`      | Buy/sell history (todo)        |
+| `users`              | User accounts, balance, auth                                   |
+| `stocks`             | Read-only stock catalog (current_price added by V3)            |
+| `portfolio_positions`| User stock holdings                                              |
+| `transactions`      | Buy/sell history                                                 |
+
+**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`.
 
 **Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
 
 ## API Conventions
 
 - Base path: `/api/v1/`
-- Public endpoints: `/api/v1/auth/**`, Swagger UI
-- All other endpoints require `Authorization: Bearer <jwt>`
+- Public endpoints: `/api/v1/auth/**`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
+- JWT-protected endpoints: `/api/v1/users/**`, `/api/v1/stocks/**`, `/api/v1/trades/**`, `/api/v1/portfolio`
+- All other endpoints require `Authorization: Bearer <jwt>` (enforced via `anyRequest().authenticated()`)
 - Standard error envelope (`ApiResponse` record): `{ timestamp, status, error, code, message, path, details }`
 - Error codes are constants in `common/web/ErrorCodes.java` — always use `UPPER_SNAKE_CASE`
 
@@ -119,6 +135,7 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 - **Transactions**: `@Transactional` on service methods; `@Transactional(readOnly = true)` for reads
 - **Logging**: `log.debug()` for request-level tracing, `log.info()` for business events
 - **No business logic in controllers** — controllers delegate to services
+- **Money**: always `BigDecimal` with scale 4 and `RoundingMode.HALF_UP`; never `double`. PnL is computed in-memory and never persisted.
 
 ### DTO → Entity Mapping
 
@@ -133,6 +150,10 @@ common/exception/
 ├── UsernameAlreadyExistsException    # Extends ResourceAlreadyExistsException
 ├── UserNotFoundException              # 404
 ├── StockNotFoundException             # 404
+├── InvalidQuantityException            # 400
+├── InsufficientBalanceException       # 400
+├── InsufficientStockQuantityException # 400
+├── PortfolioPositionNotFoundException # 404
 ├── InvalidCredentialsException       # 401 (used in login to prevent user enumeration)
 └── AuthException                     # Base for auth-related errors
 ```
@@ -142,6 +163,26 @@ Every new domain exception must be:
 2. Registered with an error code in `ErrorCodes.java`
 3. Mapped to an HTTP status in `GlobalExceptionHandler.java`
 
+### Error Codes
+
+All error code constants live in `common/web/ErrorCodes.java`:
+
+| Code | Exception | HTTP |
+|------|-----------|------|
+| `VALIDATION_ERROR` | `MethodArgumentNotValidException` | 400 |
+| `EMAIL_ALREADY_EXISTS` | `EmailAlreadyExistsException` | 409 |
+| `USERNAME_ALREADY_EXISTS` | `UsernameAlreadyExistsException` | 409 |
+| `INVALID_CREDENTIALS` | `InvalidCredentialsException` | 401 |
+| `UNAUTHENTICATED` | Spring `AuthenticationException` | 401 |
+| `ACCESS_DENIED` | Spring `AccessDeniedException` | 403 |
+| `USER_NOT_FOUND` | `UserNotFoundException` | 404 |
+| `STOCK_NOT_FOUND` | `StockNotFoundException` | 404 |
+| `INVALID_QUANTITY` | `InvalidQuantityException` | 400 |
+| `INSUFFICIENT_BALANCE` | `InsufficientBalanceException` | 400 |
+| `INSUFFICIENT_STOCK_QUANTITY` | `InsufficientStockQuantityException` | 400 |
+| `PORTFOLIO_POSITION_NOT_FOUND` | `PortfolioPositionNotFoundException` | 404 |
+| `INTERNAL_ERROR` | catch-all `Exception` | 500 |
+
 ## Testing
 
 - Framework: JUnit 5 (via spring-boot-starter-test)
@@ -149,8 +190,16 @@ Every new domain exception must be:
 - Test schema: `src/test/resources/schema.sql` (Flyway disabled in test)
 - Test types:
     - **Unit tests** (`*Test.java`): Service layer with Mockito mocks
-    - **Integration tests** (`*IntegrationTest.java`): MockMvc + real security + H2
-    - **Security tests** (`SecurityAccessTest.java`, `StockSecurityTest.java`): Full filter chain verification
+    - **Integration tests** (`*IntegrationTest.java`): MockMvc + real security + H2 or Testcontainers
+    - **Security tests** (`SecurityAccessTest.java`, `StockSecurityTest.java`, `TradeSecurityTest.java`, `PortfolioSecurityTest.java`): Full filter chain verification
+- Test suites:
+    - **auth**: `AuthServiceTest`, `AuthIntegrationTest`
+    - **user**: `UserServiceTest`
+    - **security**: `JwtServiceTest`, `SecurityAccessTest`
+    - **stocks**: `StockServiceTest`, `StockRepositoryTest`, `StockControllerTest`, `StockSecurityTest`
+    - **trading**: `TradeServiceTest`, `TradeIntegrationTest`, `TradeSecurityTest`
+    - **portfolio**: `PortfolioPositionRepositoryTest`, `PortfolioServiceTest`, `PortfolioControllerTest`, `PortfolioIntegrationTest`, `PortfolioSecurityTest`
+- Trade and portfolio integration/security tests extend `PostgresTestBase` (Testcontainers with PostgreSQL 17) because they rely on the `transaction_type` PostgreSQL enum. Stock and auth tests run on H2.
 - Run: `./gradlew test`
 
 ## Configuration
@@ -181,6 +230,11 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 - Initial balance: every new user receives `500000.0000` virtual money (`UserService.INITIAL_BALANCE`)
 - Login never reveals whether an email is registered (same 401 for "wrong password" and "no such user")
 - Stocks are read-only: seeded by Flyway, not modifiable through the API
+- **Buy**: validates quantity > 0, checks balance ≥ price × qty, saves BUY transaction, upserts position with weighted-average price: `(oldQty×oldAvg + buyQty×price) / (oldQty+buyQty)` (scale 4, HALF_UP), debits balance
+- **Sell**: validates quantity > 0, checks position exists + sufficient shares, saves SELL transaction, removes position at quantity 0 (otherwise decrements), credits balance
+- Virtual-money settlement: `balance -= total` on buy, `balance += total` on sell
+- **PnL** = `(currentPrice − averagePrice) × quantity` (scale 4, HALF_UP), computed in-memory per request, never persisted
+- Transactions are the source of truth for trade history
 
 ## DO / DON'T
 
