@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,10 +33,10 @@ class StockRepositoryTest {
     @BeforeEach
     void setUp() {
         stockRepository.saveAll(List.of(
-                Stock.builder().ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build(),
-                Stock.builder().ticker("MSFT").companyName("Microsoft Corporation").exchange("NASDAQ").build(),
-                Stock.builder().ticker("NVDA").companyName("NVIDIA Corporation").exchange("NASDAQ").build(),
-                Stock.builder().ticker("AMZN").companyName("Amazon.com Inc.").exchange("NASDAQ").build()
+                Stock.builder().ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").currentPrice(new BigDecimal("212.3500")).build(),
+                Stock.builder().ticker("MSFT").companyName("Microsoft Corporation").exchange("NASDAQ").currentPrice(new BigDecimal("415.2000")).build(),
+                Stock.builder().ticker("NVDA").companyName("NVIDIA Corporation").exchange("NASDAQ").currentPrice(new BigDecimal("120.4500")).build(),
+                Stock.builder().ticker("AMZN").companyName("Amazon.com Inc.").exchange("NASDAQ").currentPrice(new BigDecimal("185.7000")).build()
         ));
     }
 

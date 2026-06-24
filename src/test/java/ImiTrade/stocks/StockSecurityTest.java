@@ -15,6 +15,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,7 +43,8 @@ class StockSecurityTest {
     @BeforeEach
     void setUp() {
         stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build());
+                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
+                .currentPrice(new BigDecimal("212.3500")).build());
     }
 
     @Test

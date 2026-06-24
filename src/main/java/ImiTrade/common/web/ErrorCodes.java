@@ -10,6 +10,10 @@ public final class ErrorCodes {
     public static final String UNAUTHENTICATED         = "UNAUTHENTICATED";
     public static final String ACCESS_DENIED           = "ACCESS_DENIED";
     public static final String STOCK_NOT_FOUND         = "STOCK_NOT_FOUND";
+    public static final String INVALID_QUANTITY        = "INVALID_QUANTITY";
+    public static final String INSUFFICIENT_BALANCE    = "INSUFFICIENT_BALANCE";
+    public static final String INSUFFICIENT_STOCK_QUANTITY = "INSUFFICIENT_STOCK_QUANTITY";
+    public static final String PORTFOLIO_POSITION_NOT_FOUND = "PORTFOLIO_POSITION_NOT_FOUND";
     public static final String INTERNAL_ERROR          = "INTERNAL_ERROR";
 
     private ErrorCodes() {

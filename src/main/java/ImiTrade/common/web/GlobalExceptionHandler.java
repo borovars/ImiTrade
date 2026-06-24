@@ -1,7 +1,11 @@
 package ImiTrade.common.web;
 
 import ImiTrade.common.exception.EmailAlreadyExistsException;
+import ImiTrade.common.exception.InsufficientBalanceException;
+import ImiTrade.common.exception.InsufficientStockQuantityException;
 import ImiTrade.common.exception.InvalidCredentialsException;
+import ImiTrade.common.exception.InvalidQuantityException;
+import ImiTrade.common.exception.PortfolioPositionNotFoundException;
 import ImiTrade.common.exception.StockNotFoundException;
 import ImiTrade.common.exception.UsernameAlreadyExistsException;
 import ImiTrade.common.exception.UserNotFoundException;
@@ -72,6 +76,34 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleStockNotFound(StockNotFoundException ex,
                                                            HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ErrorCodes.STOCK_NOT_FOUND,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InvalidQuantityException.class)
+    public ResponseEntity<ApiResponse> handleInvalidQuantity(InvalidQuantityException ex,
+                                                             HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ErrorCodes.INVALID_QUANTITY,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ApiResponse> handleInsufficientBalance(InsufficientBalanceException ex,
+                                                                 HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ErrorCodes.INSUFFICIENT_BALANCE,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InsufficientStockQuantityException.class)
+    public ResponseEntity<ApiResponse> handleInsufficientStockQuantity(InsufficientStockQuantityException ex,
+                                                                      HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ErrorCodes.INSUFFICIENT_STOCK_QUANTITY,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(PortfolioPositionNotFoundException.class)
+    public ResponseEntity<ApiResponse> handlePortfolioPositionNotFound(PortfolioPositionNotFoundException ex,
+                                                                       HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ErrorCodes.PORTFOLIO_POSITION_NOT_FOUND,
                 ex.getMessage(), request, null);
     }
 
