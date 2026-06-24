@@ -1,0 +1,214 @@
+# ImiTrade — Project Overview
+
+ImiTrade is a backend for a virtual stock trading platform.
+
+Users receive virtual money and can buy and sell stocks.
+The system maintains portfolios and transaction history.
+
+Current state:
+- Authentication is implemented
+- Stock catalog is implemented (read-only)
+- Portfolio and trading functionality are not implemented yet
+
+Main business entities:
+- User
+- Stock
+- PortfolioPosition
+- Transaction
+
+Transactions are the source of truth.
+PortfolioPosition stores aggregated current holdings.
+## Tech Stack
+
+| Layer         | Technology                                       |
+|---------------|--------------------------------------------------|
+| Language      | Java 25                                           |
+| Framework     | Spring Boot 3.5                                   |
+| Build         | Gradle (Groovy DSL) — `./gradlew bootRun` / `test` |
+| Database      | PostgreSQL 17 (via Docker Compose)                |
+| Migration     | Flyway (classpath:db/migration)                   |
+| ORM           | Spring Data JPA + Hibernate (ddl-auto = validate)  |
+| Security      | Spring Security 6 (stateless JWT, BCrypt)          |
+| JWT           | jjwt 0.12.6 (HS256)                              |
+| API Docs      | springdoc-openapi 2.8.9 (Swagger UI at /swagger-ui.html) |
+| Lombok        | Compile-time annotation processing               |
+| Validation    | Jakarta Bean Validation (spring-boot-starter-validation) |
+| Test DB       | H2 in-memory (PostgreSQL compatibility mode)      |
+
+## Architecture
+
+**Feature-based modular monolith** — each business domain is a top-level package under `src/main/java/ImiTrade/`.
+
+```
+src/main/java/ImiTrade/
+├── Main.java                    # @SpringBootApplication entry point
+├── auth/                        # Registration & login
+│   ├── web/AuthController.java  # REST controller
+│   ├── domain/AuthService.java  # Application service
+│   └── dto/                     # AuthResponse, RegisterRequest, LoginRequest, CurrentUserResponse
+├── user/                        # User aggregate
+│   ├── web/UserController.java
+│   ├── domain/UserService.java, User.java, UserRepository.java
+│   └── (no dto — reuses auth dto CurrentUserResponse)
+├── stocks/                      # Stock catalog (read-only)
+│   ├── web/StockController.java
+│   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java
+│   └── dto/StockResponse.java
+├── security/                    # JWT infrastructure
+│   ├── SecurityFilterChainConfig.java
+│   ├── JwtService.java, JwtProperties.java
+│   ├── JwtAuthenticationFilter.java, JwtAuthentication.java
+│   ├── JwtAuthenticationEntryPoint.java, JwtAccessDeniedHandler.java
+│   └── AuthenticatedUser.java
+└── common/                      # Shared utilities
+    ├── web/GlobalExceptionHandler.java, ApiResponse.java, ErrorCodes.java
+    └── exception/               # Domain exception hierarchy
+```
+
+### Module Structure Convention
+
+Each feature module follows a strict **3-layer** pattern:
+
+```
+<feature>/
+├── web/         # @RestController, request mapping, Swagger annotations
+├── domain/      # @Service (application service), @Entity, Repository, Specifications
+└── dto/         # Java records for request/response — never expose entities directly
+```
+
+Cross-module dependencies flow **inward**: controllers → services → repositories. A service in one module may call services in other modules (e.g., `AuthService` → `UserService`). Controllers never call other controllers.
+
+### Package Naming
+
+- Top-level package: `ImiTrade` (capital I, capital T — matches project name)
+- Feature packages: lowercase (`auth`, `user`, `stocks`, `security`, `common`)
+
+## Database Schema
+
+Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
+
+| Table               | Purpose                        |
+|---------------------|--------------------------------|
+| `users`             | User accounts, balance, auth   |
+| `stocks`            | Read-only stock catalog        |
+| `portfolio_positions`| User stock holdings (todo)     |
+| `transactions`      | Buy/sell history (todo)        |
+
+**Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
+
+## API Conventions
+
+- Base path: `/api/v1/`
+- Public endpoints: `/api/v1/auth/**`, Swagger UI
+- All other endpoints require `Authorization: Bearer <jwt>`
+- Standard error envelope (`ApiResponse` record): `{ timestamp, status, error, code, message, path, details }`
+- Error codes are constants in `common/web/ErrorCodes.java` — always use `UPPER_SNAKE_CASE`
+
+## Code Style & Conventions
+
+### Java
+
+- **Records** for all DTOs (`AuthResponse`, `RegisterRequest`, `StockResponse`, etc.)
+- **Entities**: JPA `@Entity` with Lombok `@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor`
+    - No-args constructor: `AccessLevel.PROTECTED`
+    - All-args constructor: `AccessLevel.PRIVATE`
+- **Services**: `@Slf4j @Service @RequiredArgsConstructor`, constructor injection only (no field injection)
+- **Controllers**: `@RestController @RequiredArgsConstructor`, return `ResponseEntity<T>`
+- **Exceptions**: Domain exceptions extend `RuntimeException` or `ResourceAlreadyExistsException`. Handled centrally by `GlobalExceptionHandler`
+- **Swagger**: Every endpoint has `@Operation`, `@ApiResponses`, and `@Tag` on the controller
+- **Transactions**: `@Transactional` on service methods; `@Transactional(readOnly = true)` for reads
+- **Logging**: `log.debug()` for request-level tracing, `log.info()` for business events
+- **No business logic in controllers** — controllers delegate to services
+
+### DTO → Entity Mapping
+
+DTOs contain a static `from(Entity e)` factory method (e.g., `StockResponse.from(stock)`). This is the only place entity → DTO conversion happens.
+
+### Exception Pattern
+
+```
+common/exception/
+├── ResourceAlreadyExistsException   # Abstract base for 409 conflicts
+├── EmailAlreadyExistsException       # Extends ResourceAlreadyExistsException
+├── UsernameAlreadyExistsException    # Extends ResourceAlreadyExistsException
+├── UserNotFoundException              # 404
+├── StockNotFoundException             # 404
+├── InvalidCredentialsException       # 401 (used in login to prevent user enumeration)
+└── AuthException                     # Base for auth-related errors
+```
+
+Every new domain exception must be:
+1. Defined in `common/exception/`
+2. Registered with an error code in `ErrorCodes.java`
+3. Mapped to an HTTP status in `GlobalExceptionHandler.java`
+
+## Testing
+
+- Framework: JUnit 5 (via spring-boot-starter-test)
+- Profiles: `application-test.yaml` uses H2 in-memory with PostgreSQL mode
+- Test schema: `src/test/resources/schema.sql` (Flyway disabled in test)
+- Test types:
+    - **Unit tests** (`*Test.java`): Service layer with Mockito mocks
+    - **Integration tests** (`*IntegrationTest.java`): MockMvc + real security + H2
+    - **Security tests** (`SecurityAccessTest.java`, `StockSecurityTest.java`): Full filter chain verification
+- Run: `./gradlew test`
+
+## Configuration
+
+- Production config: `src/main/resources/application.yaml`
+- Test config: `src/test/resources/application-test.yaml`
+- JWT secret is injected via `APP_JWT_SECRET` env var (has a dev default, must override in prod)
+- Server port: 8080
+
+## Common Commands
+
+```bash
+./gradlew bootRun           # Start the application
+./gradlew test              # Run all tests
+docker compose up -d        # Start PostgreSQL
+docker compose down -v      # Stop PostgreSQL + delete data volume
+```
+
+## Git Workflow
+
+- Main branch: `master`
+- Feature branches are merged via pull requests
+- Commit messages: **Russian language** (e.g., "добавлена схема бд и ридми файл")
+- Branch naming: feature-based, lowercase (e.g., `stock`, `auth`, `db`)
+
+## Business Rules
+
+- Initial balance: every new user receives `500000.0000` virtual money (`UserService.INITIAL_BALANCE`)
+- Login never reveals whether an email is registered (same 401 for "wrong password" and "no such user")
+- Stocks are read-only: seeded by Flyway, not modifiable through the API
+
+## DO / DON'T
+
+- **DO** use Java `record` for all DTOs
+- **DO** use Lombok for entities and services (constructor injection via `@RequiredArgsConstructor`)
+- **DO** add Swagger `@Operation` + `@ApiResponses` to every endpoint
+- **DO** add Javadoc to public classes and methods
+- **DO** use `@Transactional(readOnly = true)` for read-only service methods
+- **DO** follow the `web/domain/dto` package structure for new modules
+- **DO** register new error codes in `ErrorCodes.java`
+- **DO** map new exceptions in `GlobalExceptionHandler.java`
+- **DON'T** expose JPA entities directly in API responses — always use DTOs
+- **DON'T** put business logic in controllers
+- **DON'T** change `ddl-auto` from `validate` (schema is managed by Flyway)
+- **DON'T** use field injection — constructor injection only
+- **DON'T** create tables or modify schema outside of Flyway migrations
+
+
+## Agent Instructions
+
+Read this file before exploring the codebase.
+
+Do not scan unrelated modules unless necessary.
+
+Assume the information in this file is authoritative.
+
+Prefer existing project patterns over introducing new approaches.
+
+Minimize token usage and code changes.
+
+Implement only the requested feature and avoid speculative improvements.
