@@ -60,4 +60,8 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    // Run tests in a single fork: several test classes spin up their own PostgreSQL
+    // container via Testcontainers (PostgresTestBase) with its own HikariPool. Forking
+    // them in parallel exhausts DB connections, so the full suite is executed sequentially.
+    maxParallelForks = 1
 }
