@@ -31,3 +31,8 @@ app:
       secret-key: dGVzdC1zZWNyZXQta2V5LWZvci1iYWNrZW5kLXVuaXQtdGVzdHMtb25seS1uby1wcm9kdWN0aW9uLXVzZS1zdHJvbmctbGVuZ3RoLWtleQ==
       access-token-ttl: 3600000   # 1h
       issuer: imitrade-test
+
+  market:
+    scheduler:
+      # Never auto-fire the scheduler during tests; tests trigger refreshPrices() explicitly.
+      enabled: false

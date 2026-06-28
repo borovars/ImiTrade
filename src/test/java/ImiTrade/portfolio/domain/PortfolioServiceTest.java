@@ -46,7 +46,7 @@ class PortfolioServiceTest {
                 .averagePrice(new BigDecimal("210.5000"))
                 .build();
         Stock stock = Stock.builder()
-                .id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
+                .id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
                 .currentPrice(new BigDecimal("215.1000"))
                 .build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(position));
@@ -57,8 +57,8 @@ class PortfolioServiceTest {
         assertThat(result).hasSize(1);
         PortfolioResponse line = result.get(0);
         assertThat(line.stockId()).isEqualTo(1L);
-        assertThat(line.ticker()).isEqualTo("AAPL");
-        assertThat(line.companyName()).isEqualTo("Apple Inc.");
+        assertThat(line.ticker()).isEqualTo("SBER");
+        assertThat(line.companyName()).isEqualTo("Сбербанк");
         assertThat(line.quantity()).isEqualTo(10);
         assertThat(line.averagePrice()).isEqualByComparingTo("210.5000");
         assertThat(line.currentPrice()).isEqualByComparingTo("215.1000");
@@ -78,7 +78,7 @@ class PortfolioServiceTest {
                 .averagePrice(new BigDecimal("215.1000"))
                 .build();
         Stock stock = Stock.builder()
-                .id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
+                .id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
                 .currentPrice(new BigDecimal("210.5000"))
                 .build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(position));
@@ -98,17 +98,17 @@ class PortfolioServiceTest {
         PortfolioPosition p2 = PortfolioPosition.builder()
                 .id(2L).userId(7L).stockId(2L)
                 .quantity(5).averagePrice(new BigDecimal("400.0000")).build();
-        Stock s1 = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("215.1000")).build();
-        Stock s2 = Stock.builder().id(2L).ticker("MSFT").companyName("Microsoft Corporation")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("420.0000")).build();
+        Stock s1 = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк")
+                .exchange("MOEX").currentPrice(new BigDecimal("215.1000")).build();
+        Stock s2 = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром")
+                .exchange("MOEX").currentPrice(new BigDecimal("420.0000")).build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(p1, p2));
         when(stockRepository.findAllById(any())).thenReturn(List.of(s1, s2));
 
         List<PortfolioResponse> result = portfolioService.getPortfolio(7L);
 
         assertThat(result).hasSize(2);
-        assertThat(result).extracting(PortfolioResponse::ticker).containsExactlyInAnyOrder("AAPL", "MSFT");
+        assertThat(result).extracting(PortfolioResponse::ticker).containsExactlyInAnyOrder("SBER", "GAZP");
         assertThat(result).extracting(PortfolioResponse::pnl)
                 .containsExactlyInAnyOrder(
                         new BigDecimal("46.0000"),   // (215.1 - 210.5) * 10
@@ -141,8 +141,8 @@ class PortfolioServiceTest {
         PortfolioPosition position = PortfolioPosition.builder()
                 .id(1L).userId(7L).stockId(1L)
                 .quantity(2).averagePrice(new BigDecimal("100.0000")).build();
-        Stock stock = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("150.0000")).build();
+        Stock stock = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк")
+                .exchange("MOEX").currentPrice(new BigDecimal("150.0000")).build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(position));
         when(stockRepository.findAllById(any())).thenReturn(List.of(stock));
 
@@ -158,8 +158,8 @@ class PortfolioServiceTest {
         PortfolioPosition position = PortfolioPosition.builder()
                 .id(1L).userId(7L).stockId(1L)
                 .quantity(7).averagePrice(new BigDecimal("200.0000")).build();
-        Stock stock = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("200.0000")).build();
+        Stock stock = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк")
+                .exchange("MOEX").currentPrice(new BigDecimal("200.0000")).build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(position));
         when(stockRepository.findAllById(any())).thenReturn(List.of(stock));
 

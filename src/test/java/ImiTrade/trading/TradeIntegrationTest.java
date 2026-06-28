@@ -64,7 +64,7 @@ class TradeIntegrationTest extends PostgresTestBase {
         Long userId = userRepository.findByEmail("trader@example.com").orElseThrow().getId();
         BigDecimal balanceBefore = userRepository.findById(userId).orElseThrow().getBalance();
 
-        // AAPL is seeded by V2 with current_price 212.3500 (V3); id = 1
+        // SBER is seeded by V2 with current_price 310.5000 (V3); id = 1
         BuyReq req = new BuyReq(1L, 10);
         MvcResult result = mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
@@ -72,11 +72,11 @@ class TradeIntegrationTest extends PostgresTestBase {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transactionId").isNumber())
-                .andExpect(jsonPath("$.stockTicker").value("AAPL"))
+                .andExpect(jsonPath("$.stockTicker").value("SBER"))
                 .andExpect(jsonPath("$.type").value("BUY"))
                 .andExpect(jsonPath("$.quantity").value(10))
-                .andExpect(jsonPath("$.price").value(212.3500))
-                .andExpect(jsonPath("$.totalAmount").value(2123.5000))
+                .andExpect(jsonPath("$.price").value(310.5000))
+                .andExpect(jsonPath("$.totalAmount").value(3105.0000))
                 .andReturn();
 
         Long transactionId = objectMapper.readTree(result.getResponse().getContentAsString())
@@ -87,17 +87,17 @@ class TradeIntegrationTest extends PostgresTestBase {
         assertThat(tx.getType()).isEqualTo(TransactionType.BUY);
         assertThat(tx.getUserId()).isEqualTo(userId);
         assertThat(tx.getStockId()).isEqualTo(1L);
-        assertThat(tx.getTotalAmount()).isEqualByComparingTo(new BigDecimal("2123.5000"));
+        assertThat(tx.getTotalAmount()).isEqualByComparingTo(new BigDecimal("3105.0000"));
 
         // balance decreased by the trade total
         BigDecimal balanceAfter = userRepository.findById(userId).orElseThrow().getBalance();
-        assertThat(balanceAfter).isEqualByComparingTo(balanceBefore.subtract(new BigDecimal("2123.5000")));
+        assertThat(balanceAfter).isEqualByComparingTo(balanceBefore.subtract(new BigDecimal("3105.0000")));
 
         // a portfolio position was created
         PortfolioPosition position = portfolioPositionRepository
                 .findByUserIdAndStockId(userId, 1L).orElseThrow();
         assertThat(position.getQuantity()).isEqualTo(10);
-        assertThat(position.getAveragePrice()).isEqualByComparingTo(new BigDecimal("212.3500"));
+        assertThat(position.getAveragePrice()).isEqualByComparingTo(new BigDecimal("310.5000"));
     }
 
     @Test
@@ -116,7 +116,7 @@ class TradeIntegrationTest extends PostgresTestBase {
 
         BigDecimal balanceBefore = userRepository.findById(userId).orElseThrow().getBalance();
 
-        // sell 4 of 10 shares of AAPL at 212.3500 -> total 849.4000
+        // sell 4 of 10 shares of SBER at 310.5000 -> total 1242.0000
         SellReq req = new SellReq(1L, 4);
         MvcResult result = mockMvc.perform(post("/api/v1/trades/sell")
                         .header("Authorization", "Bearer " + token)
@@ -125,7 +125,7 @@ class TradeIntegrationTest extends PostgresTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("SELL"))
                 .andExpect(jsonPath("$.quantity").value(4))
-                .andExpect(jsonPath("$.totalAmount").value(849.4000))
+                .andExpect(jsonPath("$.totalAmount").value(1242.0000))
                 .andReturn();
 
         Long transactionId = objectMapper.readTree(result.getResponse().getContentAsString())
@@ -136,7 +136,7 @@ class TradeIntegrationTest extends PostgresTestBase {
 
         // balance increased by the trade total
         BigDecimal balanceAfter = userRepository.findById(userId).orElseThrow().getBalance();
-        assertThat(balanceAfter).isEqualByComparingTo(balanceBefore.add(new BigDecimal("849.4000")));
+        assertThat(balanceAfter).isEqualByComparingTo(balanceBefore.add(new BigDecimal("1242.0000")));
 
         // position quantity decreased to 6
         PortfolioPosition position = portfolioPositionRepository

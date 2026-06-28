@@ -8,13 +8,18 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
 /**
- * Registers the MOEX integration beans: binds {@link MarketProperties} and exposes a
- * dedicated {@link RestClient} for {@code MoexClient}.
+ * Registers the MOEX integration beans and enables Spring scheduling.
+ *
+ * <p>Bound properties: {@link MarketProperties} (MOEX ISS endpoint) and
+ * {@link SchedulerProperties} (price-refresh cadence). {@link EnableScheduling} lives
+ * here so the whole market-data feature (client + service + scheduler) is wired in one
+ * place rather than on the application entry point.
  *
  * <p>MOEX serves {@code .json} responses with {@code Content-Type: text/plain}
  * (see the ISS developer guide). The default Jackson converter only reads
@@ -25,7 +30,8 @@ import java.util.List;
  * {@code MockRestServiceServer}.
  */
 @Configuration
-@EnableConfigurationProperties(MarketProperties.class)
+@EnableScheduling
+@EnableConfigurationProperties({MarketProperties.class, SchedulerProperties.class})
 public class MarketClientConfig {
 
     @Bean

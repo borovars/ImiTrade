@@ -35,15 +35,15 @@ class StockServiceTest {
     @DisplayName("getStocks: delegates to repository with the assembled specification and pageable")
     @Test
     void getStocksReturnsPage() {
-        Stock aapl = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build();
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
         Pageable pageable = PageRequest.of(0, 10);
         @SuppressWarnings("unchecked")
-        Page<Stock> returned = new PageImpl<>(List.of(aapl), pageable, 1);
+        Page<Stock> returned = new PageImpl<>(List.of(sber), pageable, 1);
         when(stockRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(returned);
 
-        Page<Stock> result = stockService.getStocks("AAPL", null, pageable);
+        Page<Stock> result = stockService.getStocks("SBER", null, pageable);
 
-        assertThat(result.getContent()).containsExactly(aapl);
+        assertThat(result.getContent()).containsExactly(sber);
         verify(stockRepository).findAll(any(Specification.class), eq(pageable));
     }
 
@@ -64,10 +64,10 @@ class StockServiceTest {
     @DisplayName("getStockById: returns the stock when found")
     @Test
     void getStockByIdFound() {
-        Stock aapl = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build();
-        when(stockRepository.findById(1L)).thenReturn(Optional.of(aapl));
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
+        when(stockRepository.findById(1L)).thenReturn(Optional.of(sber));
 
-        assertThat(stockService.getStockById(1L)).isSameAs(aapl);
+        assertThat(stockService.getStockById(1L)).isSameAs(sber);
     }
 
     @DisplayName("getStockById: throws StockNotFoundException when missing")

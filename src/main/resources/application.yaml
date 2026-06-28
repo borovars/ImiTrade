@@ -42,6 +42,12 @@ app:
       # marketdata field that holds the current price (LAST = last traded price)
       price-field: LAST
 
+    scheduler:
+      # Price-refresh scheduler. When false the job does not register at all.
+      enabled: ${APP_MARKET_SCHEDULER_ENABLED:true}
+      # Refresh period in milliseconds (default = 1 minute)
+      fixed-rate: ${APP_MARKET_SCHEDULER_FIXED_RATE:60000}
+
 
 springdoc:
   swagger-ui:

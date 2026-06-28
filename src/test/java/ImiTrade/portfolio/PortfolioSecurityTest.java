@@ -79,17 +79,17 @@ class PortfolioSecurityTest {
         String token = registerAndExtractToken();
         Long userId = userRepository.findByEmail(EMAIL).map(User::getId).orElseThrow();
 
-        Stock aapl = stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
-                .currentPrice(new BigDecimal("215.1000")).build());
+        Stock sber = stockRepository.save(Stock.builder()
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new BigDecimal("310.5000")).build());
         portfolioPositionRepository.save(PortfolioPosition.builder()
-                .userId(userId).stockId(aapl.getId())
-                .quantity(10).averagePrice(new BigDecimal("210.5000")).build());
+                .userId(userId).stockId(sber.getId())
+                .quantity(10).averagePrice(new BigDecimal("305.9000")).build());
 
         mockMvc.perform(get("/api/v1/portfolio")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
                 .andExpect(jsonPath("$[0].quantity").value(10))
                 .andExpect(jsonPath("$[0].pnl").value(46.00));
     }

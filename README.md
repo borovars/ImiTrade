@@ -47,8 +47,9 @@ app:
 
 ### Stocks
 
-Six stocks (AAPL, MSFT, NVDA, AMZN, TSLA, GOOGL) are seeded by Flyway and
-read-only — `current_price` drives all buy/sell trades.
+Six MOEX blue-chip stocks (SBER, GAZP, LKOH, ROSN, NVTK, YDEX) are seeded by
+Flyway and read-only — `current_price` is kept in sync with MOEX by the
+market-data scheduler and drives all buy/sell trades.
 
 ### Buy (`POST /api/v1/trades/buy`)
 

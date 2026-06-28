@@ -87,11 +87,11 @@ class AccountSecurityTest {
         String token = registerAndExtractToken();
         Long userId = userRepository.findByEmail(EMAIL).map(User::getId).orElseThrow();
 
-        Stock aapl = stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
+        Stock sber = stockRepository.save(Stock.builder()
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
                 .currentPrice(new BigDecimal("215.1000")).build());
         portfolioPositionRepository.save(PortfolioPosition.builder()
-                .userId(userId).stockId(aapl.getId())
+                .userId(userId).stockId(sber.getId())
                 .quantity(10).averagePrice(new BigDecimal("210.5000")).build());
 
         // portfolioValue = 215.1000*10 = 2151.0000

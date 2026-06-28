@@ -53,22 +53,22 @@ class PortfolioIntegrationTest {
         String token = registerAndExtractToken();
         Long userId = userRepository.findByEmail(EMAIL).map(User::getId).orElseThrow();
 
-        Stock aapl = stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
-                .currentPrice(new BigDecimal("215.1000")).build());
+        Stock sber = stockRepository.save(Stock.builder()
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new BigDecimal("310.5000")).build());
         portfolioPositionRepository.save(PortfolioPosition.builder()
-                .userId(userId).stockId(aapl.getId())
-                .quantity(10).averagePrice(new BigDecimal("210.5000")).build());
+                .userId(userId).stockId(sber.getId())
+                .quantity(10).averagePrice(new BigDecimal("305.9000")).build());
 
         mockMvc.perform(get("/api/v1/portfolio")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].stockId").value(aapl.getId().intValue()))
-                .andExpect(jsonPath("$[0].ticker").value("AAPL"))
-                .andExpect(jsonPath("$[0].companyName").value("Apple Inc."))
+                .andExpect(jsonPath("$[0].stockId").value(sber.getId().intValue()))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[0].companyName").value("Сбербанк"))
                 .andExpect(jsonPath("$[0].quantity").value(10))
-                .andExpect(jsonPath("$[0].averagePrice").value(210.50))
-                .andExpect(jsonPath("$[0].currentPrice").value(215.10))
+                .andExpect(jsonPath("$[0].averagePrice").value(305.90))
+                .andExpect(jsonPath("$[0].currentPrice").value(310.50))
                 .andExpect(jsonPath("$[0].pnl").value(46.00));
     }
 
@@ -78,22 +78,22 @@ class PortfolioIntegrationTest {
         String token = registerAndExtractToken();
         Long userId = userRepository.findByEmail(EMAIL).map(User::getId).orElseThrow();
 
-        Stock aapl = stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
-                .currentPrice(new BigDecimal("215.1000")).build());
+        Stock sber = stockRepository.save(Stock.builder()
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new BigDecimal("310.5000")).build());
         portfolioPositionRepository.save(PortfolioPosition.builder()
-                .userId(userId).stockId(aapl.getId())
-                .quantity(10).averagePrice(new BigDecimal("210.5000")).build());
+                .userId(userId).stockId(sber.getId())
+                .quantity(10).averagePrice(new BigDecimal("305.9000")).build());
 
         // Simulate a market price move after the position was opened.
-        aapl.setCurrentPrice(new BigDecimal("200.0000"));
-        stockRepository.save(aapl);
+        sber.setCurrentPrice(new BigDecimal("300.0000"));
+        stockRepository.save(sber);
 
         mockMvc.perform(get("/api/v1/portfolio")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                // (200.0 - 210.5) * 10 = -105.0000
-                .andExpect(jsonPath("$[0].pnl").value(-105.00));
+                // (300.0 - 305.9) * 10 = -59.0000
+                .andExpect(jsonPath("$[0].pnl").value(-59.00));
     }
 
     @Test
