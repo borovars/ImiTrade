@@ -33,6 +33,16 @@ app:
       access-token-ttl: ${APP_JWT_TTL:86400000}
       issuer: imitrade
 
+  market:
+    moex:
+      # MOEX ISS root (no trailing slash). Public marketdata — no auth required.
+      base-url: ${APP_MOEX_BASE_URL:https://iss.moex.com/iss}
+      engine: stock
+      market: shares
+      # marketdata field that holds the current price (LAST = last traded price)
+      price-field: LAST
+
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

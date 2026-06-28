@@ -14,6 +14,8 @@ public final class ErrorCodes {
     public static final String INSUFFICIENT_BALANCE    = "INSUFFICIENT_BALANCE";
     public static final String INSUFFICIENT_STOCK_QUANTITY = "INSUFFICIENT_STOCK_QUANTITY";
     public static final String PORTFOLIO_POSITION_NOT_FOUND = "PORTFOLIO_POSITION_NOT_FOUND";
+    public static final String MARKET_DATA_UNAVAILABLE = "MARKET_DATA_UNAVAILABLE";
+    public static final String INVALID_TICKER         = "INVALID_TICKER";
     public static final String INTERNAL_ERROR          = "INTERNAL_ERROR";
 
     private ErrorCodes() {
