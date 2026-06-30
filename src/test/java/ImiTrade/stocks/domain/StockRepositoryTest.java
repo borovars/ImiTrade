@@ -33,22 +33,22 @@ class StockRepositoryTest {
     @BeforeEach
     void setUp() {
         stockRepository.saveAll(List.of(
-                Stock.builder().ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").currentPrice(new BigDecimal("212.3500")).build(),
-                Stock.builder().ticker("MSFT").companyName("Microsoft Corporation").exchange("NASDAQ").currentPrice(new BigDecimal("415.2000")).build(),
-                Stock.builder().ticker("NVDA").companyName("NVIDIA Corporation").exchange("NASDAQ").currentPrice(new BigDecimal("120.4500")).build(),
-                Stock.builder().ticker("AMZN").companyName("Amazon.com Inc.").exchange("NASDAQ").currentPrice(new BigDecimal("185.7000")).build()
+                Stock.builder().ticker("SBER").companyName("Сбербанк").exchange("MOEX").currentPrice(new BigDecimal("310.5000")).build(),
+                Stock.builder().ticker("GAZP").companyName("Газпром").exchange("MOEX").currentPrice(new BigDecimal("170.2000")).build(),
+                Stock.builder().ticker("LKOH").companyName("ЛУКОЙЛ").exchange("MOEX").currentPrice(new BigDecimal("6800.0000")).build(),
+                Stock.builder().ticker("ROSN").companyName("Роснефть").exchange("MOEX").currentPrice(new BigDecimal("620.0000")).build()
         ));
     }
 
     @DisplayName("filter by ticker (case-insensitive exact match) returns the single match")
     @Test
     void filterByTicker() {
-        Specification<Stock> spec = StockSpecifications.hasTickerIgnoreCase("aapl");
+        Specification<Stock> spec = StockSpecifications.hasTickerIgnoreCase("sber");
 
         Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getTicker()).isEqualTo("AAPL");
+        assertThat(page.getContent().get(0).getTicker()).isEqualTo("SBER");
     }
 
     @DisplayName("filter by ticker with no match returns an empty page")
@@ -64,26 +64,26 @@ class StockRepositoryTest {
     @DisplayName("filter by companyName (case-insensitive partial match) returns all matches")
     @Test
     void filterByCompanyName() {
-        Specification<Stock> spec = StockSpecifications.companyNameContainsIgnoreCase("inc");
+        Specification<Stock> spec = StockSpecifications.companyNameContainsIgnoreCase("о");
 
         Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
 
         assertThat(page.getContent())
                 .extracting(Stock::getCompanyName)
-                .containsExactlyInAnyOrder("Apple Inc.", "Amazon.com Inc.");
+                .containsExactlyInAnyOrder("Газпром", "ЛУКОЙЛ", "Роснефть");
     }
 
     @DisplayName("combining ticker and companyName predicates narrows the result")
     @Test
     void combineTickerAndCompanyName() {
         Specification<Stock> spec = Specification.allOf(
-                StockSpecifications.hasTickerIgnoreCase("AMZN"),
-                StockSpecifications.companyNameContainsIgnoreCase("amazon"));
+                StockSpecifications.hasTickerIgnoreCase("ROSN"),
+                StockSpecifications.companyNameContainsIgnoreCase("роснефть"));
 
         Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getTicker()).isEqualTo("AMZN");
+        assertThat(page.getContent().get(0).getTicker()).isEqualTo("ROSN");
     }
 
     @DisplayName("pagination returns the requested page slice and total count")
@@ -96,10 +96,49 @@ class StockRepositoryTest {
         assertThat(firstPage.getTotalElements()).isEqualTo(4);
         assertThat(firstPage.getTotalPages()).isEqualTo(2);
         assertThat(firstPage.getContent()).extracting(Stock::getTicker)
-                .containsExactly("AAPL", "AMZN");
+                .containsExactly("GAZP", "LKOH");
 
         assertThat(secondPage.getContent()).hasSize(2);
         assertThat(secondPage.getContent()).extracting(Stock::getTicker)
-                .containsExactly("MSFT", "NVDA");
+                .containsExactly("ROSN", "SBER");
+    }
+
+    @DisplayName("findAll returns every seeded stock (used by the price-refresh scheduler)")
+    @Test
+    void findAllReturnsAll() {
+        List<Stock> all = stockRepository.findAll();
+
+        assertThat(all).hasSize(4);
+        assertThat(all).extracting(Stock::getTicker)
+                .containsExactlyInAnyOrder("SBER", "GAZP", "LKOH", "ROSN");
+    }
+
+    @DisplayName("updateCurrentPrice writes the new price and returns 1 for an existing stock")
+    @Test
+    void updateCurrentPriceExisting() {
+        Stock aapl = stockRepository.findAll(PageRequest.of(0, 20)).getContent().stream()
+                .filter(s -> s.getTicker().equals("SBER"))
+                .findFirst().orElseThrow();
+        BigDecimal newPrice = new BigDecimal("999.0000");
+
+        int affected = stockRepository.updateCurrentPrice(aapl.getId(), newPrice);
+
+        assertThat(affected).isEqualTo(1);
+        // flush so the bulk UPDATE is applied before the verification SELECT
+        stockRepository.flush();
+        BigDecimal persisted = stockRepository.findById(aapl.getId()).orElseThrow().getCurrentPrice();
+        assertThat(persisted).isEqualByComparingTo(newPrice);
+    }
+
+    @DisplayName("updateCurrentPrice returns 0 and does not create a row for an unknown stock id")
+    @Test
+    void updateCurrentPriceUnknownId() {
+        long unknownId = 999_999L;
+
+        int affected = stockRepository.updateCurrentPrice(unknownId, new BigDecimal("1.0000"));
+
+        assertThat(affected).isZero();
+        assertThat(stockRepository.findById(unknownId)).isNotPresent();
+        assertThat(stockRepository.count()).isEqualTo(4);
     }
 }

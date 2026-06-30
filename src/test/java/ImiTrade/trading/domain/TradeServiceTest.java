@@ -72,7 +72,7 @@ class TradeServiceTest {
     @Test
     void buySuccessNewPosition() {
         User user = sampleUser(new BigDecimal("500000.0000"));
-        Stock stock = sampleStock(new BigDecimal("212.3500"));
+        Stock stock = sampleStock(new BigDecimal("310.5000"));
         stubUserAndStock(user, stock);
         when(portfolioPositionRepository.findByUserIdAndStockId(USER_ID, STOCK_ID)).thenReturn(Optional.empty());
         stubTransactionSave(TransactionType.BUY);
@@ -80,13 +80,13 @@ class TradeServiceTest {
         TradeResponse res = tradeService.buy(USER_ID, new BuyStockRequest(STOCK_ID, 10));
 
         assertThat(res.type()).isEqualTo("BUY");
-        assertThat(res.stockTicker()).isEqualTo("AAPL");
+        assertThat(res.stockTicker()).isEqualTo("SBER");
         assertThat(res.quantity()).isEqualTo(10);
-        assertThat(res.price()).isEqualByComparingTo("212.3500");
-        assertThat(res.totalAmount()).isEqualByComparingTo("2123.5000");
+        assertThat(res.price()).isEqualByComparingTo("310.5000");
+        assertThat(res.totalAmount()).isEqualByComparingTo("3105.0000");
 
         // balance debited
-        assertThat(user.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000").subtract(new BigDecimal("2123.5000")));
+        assertThat(user.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000").subtract(new BigDecimal("3105.0000")));
         // a new position was saved
         verify(portfolioPositionRepository).save(any(PortfolioPosition.class));
         verify(transactionRepository).save(any(Transaction.class));
@@ -117,7 +117,7 @@ class TradeServiceTest {
     @Test
     void buyInsufficientBalance() {
         User user = sampleUser(new BigDecimal("100.0000"));
-        Stock stock = sampleStock(new BigDecimal("212.3500"));
+        Stock stock = sampleStock(new BigDecimal("310.5000"));
         stubUserAndStock(user, stock);
 
         assertThatThrownBy(() -> tradeService.buy(USER_ID, new BuyStockRequest(STOCK_ID, 10)))
@@ -158,7 +158,7 @@ class TradeServiceTest {
     @Test
     void sellSuccess() {
         User user = sampleUser(new BigDecimal("100000.0000"));
-        Stock stock = sampleStock(new BigDecimal("212.3500"));
+        Stock stock = sampleStock(new BigDecimal("310.5000"));
         stubUserAndStock(user, stock);
 
         PortfolioPosition position = PortfolioPosition.builder()
@@ -170,12 +170,12 @@ class TradeServiceTest {
         TradeResponse res = tradeService.sell(USER_ID, new SellStockRequest(STOCK_ID, 5));
 
         assertThat(res.type()).isEqualTo("SELL");
-        assertThat(res.totalAmount()).isEqualByComparingTo("1061.7500");
+        assertThat(res.totalAmount()).isEqualByComparingTo("1552.5000");
         assertThat(position.getQuantity()).isEqualTo(5);
         // average price unchanged on sell
         assertThat(position.getAveragePrice()).isEqualByComparingTo(new BigDecimal("100.0000"));
         // balance credited
-        assertThat(user.getBalance()).isEqualByComparingTo(new BigDecimal("100000.0000").add(new BigDecimal("1061.7500")));
+        assertThat(user.getBalance()).isEqualByComparingTo(new BigDecimal("100000.0000").add(new BigDecimal("1552.5000")));
         verify(portfolioPositionRepository).save(position);
     }
 
@@ -183,7 +183,7 @@ class TradeServiceTest {
     @Test
     void sellDeletesPositionWhenZero() {
         User user = sampleUser(new BigDecimal("100000.0000"));
-        Stock stock = sampleStock(new BigDecimal("212.3500"));
+        Stock stock = sampleStock(new BigDecimal("310.5000"));
         stubUserAndStock(user, stock);
 
         PortfolioPosition position = PortfolioPosition.builder()
@@ -270,9 +270,9 @@ class TradeServiceTest {
     private static Stock sampleStock(BigDecimal currentPrice) {
         return Stock.builder()
                 .id(STOCK_ID)
-                .ticker("AAPL")
-                .companyName("Apple Inc.")
-                .exchange("NASDAQ")
+                .ticker("SBER")
+                .companyName("Сбербанк")
+                .exchange("MOEX")
                 .currentPrice(currentPrice)
                 .build();
     }

@@ -52,23 +52,23 @@ class PortfolioPositionRepositoryTest {
         aliceId = alice.getId();
         bobId = bob.getId();
 
-        Stock aapl = stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
+        Stock sber = stockRepository.save(Stock.builder()
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
                 .currentPrice(new BigDecimal("215.1000")).build());
-        aaplId = aapl.getId();
-        Stock msft = stockRepository.save(Stock.builder()
-                .ticker("MSFT").companyName("Microsoft Corporation").exchange("NASDAQ")
+        aaplId = sber.getId();
+        Stock gazp = stockRepository.save(Stock.builder()
+                .ticker("GAZP").companyName("Газпром").exchange("MOEX")
                 .currentPrice(new BigDecimal("420.0000")).build());
 
         portfolioPositionRepository.saveAll(List.of(
                 PortfolioPosition.builder()
-                        .userId(aliceId).stockId(aapl.getId())
+                        .userId(aliceId).stockId(sber.getId())
                         .quantity(10).averagePrice(new BigDecimal("210.5000")).build(),
                 PortfolioPosition.builder()
-                        .userId(aliceId).stockId(msft.getId())
+                        .userId(aliceId).stockId(gazp.getId())
                         .quantity(5).averagePrice(new BigDecimal("400.0000")).build(),
                 PortfolioPosition.builder()
-                        .userId(bobId).stockId(aapl.getId())
+                        .userId(bobId).stockId(sber.getId())
                         .quantity(3).averagePrice(new BigDecimal("200.0000")).build()));
     }
 

@@ -53,34 +53,34 @@ class StockControllerTest {
     @DisplayName("GET /api/v1/stocks — 200 with serialized stock page")
     @Test
     void getStocksReturnsPage() throws Exception {
-        Stock aapl = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build();
-        Stock msft = Stock.builder().id(2L).ticker("MSFT").companyName("Microsoft Corporation").exchange("NASDAQ").build();
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
+        Stock gazp = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром").exchange("MOEX").build();
         given(stockService.getStocks(eq(null), eq(null), any()))
-                .willReturn(new PageImpl<>(List.of(aapl, msft), PageRequest.of(0, 20), 2));
+                .willReturn(new PageImpl<>(List.of(sber, gazp), PageRequest.of(0, 20), 2));
 
         mockMvc.perform(get("/api/v1/stocks")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)))
                 .andExpect(jsonPath("$.content[0].id").value(1))
-                .andExpect(jsonPath("$.content[0].ticker").value("AAPL"))
-                .andExpect(jsonPath("$.content[0].companyName").value("Apple Inc."))
-                .andExpect(jsonPath("$.content[0].exchange").value("NASDAQ"))
+                .andExpect(jsonPath("$.content[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$.content[0].companyName").value("Сбербанк"))
+                .andExpect(jsonPath("$.content[0].exchange").value("MOEX"))
                 .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @DisplayName("GET /api/v1/stocks/{id} — 200 with serialized stock for an existing id")
     @Test
     void getStockByIdFound() throws Exception {
-        Stock aapl = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ").build();
-        given(stockService.getStockById(1L)).willReturn(aapl);
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
+        given(stockService.getStockById(1L)).willReturn(sber);
 
         mockMvc.perform(get("/api/v1/stocks/1").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.ticker").value("AAPL"))
-                .andExpect(jsonPath("$.companyName").value("Apple Inc."))
-                .andExpect(jsonPath("$.exchange").value("NASDAQ"));
+                .andExpect(jsonPath("$.ticker").value("SBER"))
+                .andExpect(jsonPath("$.companyName").value("Сбербанк"))
+                .andExpect(jsonPath("$.exchange").value("MOEX"));
     }
 
     @DisplayName("GET /api/v1/stocks/{id} — 404 with STOCK_NOT_FOUND code for a missing stock")

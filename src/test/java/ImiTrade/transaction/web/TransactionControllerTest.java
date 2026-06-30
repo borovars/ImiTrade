@@ -82,7 +82,7 @@ class TransactionControllerTest {
     @Test
     void getTransactionsReturnsPage() throws Exception {
         TransactionResponse line = new TransactionResponse(
-                15L, 1L, "AAPL", "BUY", 10,
+                15L, 1L, "SBER", "BUY", 10,
                 new BigDecimal("210.5000"), new BigDecimal("2105.0000"),
                 Instant.parse("2026-06-25T10:15:00Z"));
         Page<TransactionResponse> page = new PageImpl<>(List.of(line), PageRequest.of(0, 20), 1);
@@ -97,7 +97,7 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(15))
                 .andExpect(jsonPath("$.content[0].stockId").value(1))
-                .andExpect(jsonPath("$.content[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("$.content[0].ticker").value("SBER"))
                 .andExpect(jsonPath("$.content[0].type").value("BUY"))
                 .andExpect(jsonPath("$.content[0].quantity").value(10))
                 .andExpect(jsonPath("$.content[0].price").value(210.50))
@@ -122,7 +122,7 @@ class TransactionControllerTest {
     @Test
     void getTransactionsWithTypeFilter() throws Exception {
         TransactionResponse line = new TransactionResponse(
-                16L, 1L, "AAPL", "SELL", 3,
+                16L, 1L, "SBER", "SELL", 3,
                 new BigDecimal("215.0000"), new BigDecimal("645.0000"),
                 Instant.parse("2026-06-25T11:00:00Z"));
         Page<TransactionResponse> page = new PageImpl<>(List.of(line), PageRequest.of(0, 20), 1);
@@ -155,7 +155,7 @@ class TransactionControllerTest {
     @Test
     void getTransactionsWithPaging() throws Exception {
         TransactionResponse first = new TransactionResponse(
-                1L, 1L, "AAPL", "BUY", 10,
+                1L, 1L, "SBER", "BUY", 10,
                 new BigDecimal("210.5000"), new BigDecimal("2105.0000"),
                 Instant.parse("2026-06-25T10:15:00Z"));
         Page<TransactionResponse> page = new PageImpl<>(List.of(first), PageRequest.of(0, 2), 5);

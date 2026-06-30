@@ -5,6 +5,8 @@ import ImiTrade.common.exception.InsufficientBalanceException;
 import ImiTrade.common.exception.InsufficientStockQuantityException;
 import ImiTrade.common.exception.InvalidCredentialsException;
 import ImiTrade.common.exception.InvalidQuantityException;
+import ImiTrade.common.exception.InvalidTickerException;
+import ImiTrade.common.exception.MarketDataUnavailableException;
 import ImiTrade.common.exception.PortfolioPositionNotFoundException;
 import ImiTrade.common.exception.StockNotFoundException;
 import ImiTrade.common.exception.UsernameAlreadyExistsException;
@@ -104,6 +106,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handlePortfolioPositionNotFound(PortfolioPositionNotFoundException ex,
                                                                        HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ErrorCodes.PORTFOLIO_POSITION_NOT_FOUND,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(MarketDataUnavailableException.class)
+    public ResponseEntity<ApiResponse> handleMarketDataUnavailable(MarketDataUnavailableException ex,
+                                                                  HttpServletRequest request) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ErrorCodes.MARKET_DATA_UNAVAILABLE,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InvalidTickerException.class)
+    public ResponseEntity<ApiResponse> handleInvalidTicker(InvalidTickerException ex,
+                                                           HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ErrorCodes.INVALID_TICKER,
                 ex.getMessage(), request, null);
     }
 

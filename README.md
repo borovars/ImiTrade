@@ -1,204 +1,221 @@
 # ImiTrade
 
-Trading-platform backend. Spring Boot 3.5 / Java 25 / PostgreSQL / Flyway.
+ImiTrade — платформа, имитирующая работу инвестиционного приложения.
+Пользователь может покупать и продавать акции за виртуальную валюту, управлять
+портфелем и просматривать историю операций. Актуальные рыночные цены автоматически
+обновляются через интеграцию с MOEX ISS API.
 
-## Modules
+## Features
 
-| Feature    | Description                                                        |
-|------------|-------------------------------------------------------------------|
-| `auth`     | Registration (`POST /api/v1/auth/register`), login (`POST /api/v1/auth/login`) |
-| `user`     | Current-user profile (`GET /api/v1/users/me`)                     |
-| `security` | Stateless JWT auth, BCrypt, Spring Security 6 filter chain         |
-| `common`   | Shared error envelope, exception handling                          |
-| `stocks`   | Read-only catalog: `GET /api/v1/stocks` (paginated, ticker/companyName filters), `GET /api/v1/stocks/{id}` |
-| `trading`  | Buy/sell: `POST /api/v1/trades/buy`, `POST /api/v1/trades/sell`     |
-| `portfolio`| Current holdings + live PnL: `GET /api/v1/portfolio`               |
-| `account`  | Account summary (main screen): `GET /api/v1/account`               |
+- JWT-аутентификация (stateless, HS256) и авторизация
+- Регистрация и вход пользователей (пароли хранятся в BCrypt)
+- Каталог акций с пагинацией и фильтрами (тикер, название компании)
+- Автоматическое обновление цен через MOEX ISS API
+- Покупка и продажа акций по текущей рыночной цене
+- Просмотр инвестиционного портфеля с незавершённым PnL
+- Сводка по аккаунту (баланс, стоимость портфеля, прибыль/убыток)
+- История операций с фильтрами
+- OpenAPI-спецификация и Swagger UI
+- Управление схемой БД через Flyway-миграции
+- Docker Compose для локального PostgreSQL
+- Тесты: unit, integration и security
 
-## Authentication model
+## Tech stack
 
-- **Stateless** — no HTTP sessions (`SessionCreationPolicy.STATELESS`).
-- **BCrypt** password hashing (`BCryptPasswordEncoder`).
-- **JWT (HS256)** issued on register/login; claims: `sub` = userId, `email`.
-- `/api/v1/auth/**` and Swagger endpoints are **public**; everything else
-  requires a valid `Authorization: Bearer <jwt>` header.
-- Invalid/missing token → `401` with a JSON body (`code = UNAUTHENTICATED`).
-- Bad credentials or unknown user → `401` (`code = INVALID_CREDENTIALS`)
-  — login never reveals whether an e-mail is registered.
-- Duplicate email/username → `409` (`EMAIL_ALREADY_EXISTS` / `USERNAME_ALREADY_EXISTS`).
+**Backend**
 
-### Initial balance
+- Java 25
+- Spring Boot 3.5.0
+- Spring Security 6
+- Spring Data JPA
+- Spring Validation
+- Flyway
+- jjwt 0.12.6
+- Lombok
+- Gradle
 
-Every newly registered user starts with **500000.00** virtual money
-(`UserService.INITIAL_BALANCE`), per business rule.
+**Database**
 
-### Configuration (`application.yaml`)
+- PostgreSQL 17
 
-```yaml
-app:
-  security:
-    jwt:
-      secret-key: ${APP_JWT_SECRET:<base64-key>}   # override in production!
-      access-token-ttl: ${APP_JWT_TTL:86400000}    # ms (24h by default)
-      issuer: imitrade
+**Testing**
+
+- JUnit 5
+- Mockito
+- Spring Boot Test
+- Testcontainers (PostgreSQL)
+- H2 (для части тестов)
+
+**Documentation**
+
+- springdoc-openapi 2.8.9 (Swagger UI)
+
+**Infrastructure**
+
+- Docker
+- Docker Compose
+
+**External API**
+
+- MOEX ISS API
+
+## Architecture
+
+Проект построен по **feature-based архитектуре**: каждый бизнес-модуль
+(feature) инкапсулирует свой контроллер (`web`), сервис и репозиторий
+(`domain`) и DTO (`dto`). Сквозная инфраструктура вынесена в модули
+`security` и `common`.
+
+```text
+src/main/java/ImiTrade/
+├── auth/            # регистрация и вход, выдача JWT
+│   ├── web/         # AuthController
+│   ├── domain/      # AuthService
+│   └── dto/         # RegisterRequest, LoginRequest, AuthResponse
+├── user/            # профиль текущего пользователя
+│   └── web/ domain/ dto/
+├── stocks/          # каталог акций (read-only) + обновление current_price
+├── trading/         # покупка и продажа акций
+├── portfolio/       # текущие позиции и незавершённый PnL
+├── transaction/     # история операций (источник истины: append-only)
+├── account/         # сводка по аккаунту (главный экран)
+├── market/          # интеграция с MOEX ISS API и планировщик обновления цен
+│   ├── client/      # MoexClient + DTO ответа
+│   ├── domain/      # MarketDataService, MarketDataScheduler
+│   └── config/      # MarketProperties, SchedulerProperties
+├── security/        # фильтр JWT, SecurityFilterChain, обработчики 401/403
+└── common/          # общий error-конверт, глобальная обработка исключений
 ```
 
-## Trading & Portfolio
+Каждый защищённый эндпоинт получает аутентифицированного пользователя через
+`@AuthenticationPrincipal`. Связи между сущностями хранятся как скалярные
+id-колонки (без JPA-ассоциаций), денежные значения — `BigDecimal`.
 
-### Stocks
+## Database schema
 
-Six stocks (AAPL, MSFT, NVDA, AMZN, TSLA, GOOGL) are seeded by Flyway and
-read-only — `current_price` drives all buy/sell trades.
+Схема состоит из четырёх таблиц и управляется Flyway
+(`src/main/resources/db/migration/`).
 
-### Buy (`POST /api/v1/trades/buy`)
+| Таблица | Назначение |
+|---|---|
+| `users` | Пользователи: email, username, password_hash, balance |
+| `stocks` | Каталог акций: ticker, company_name, exchange, current_price |
+| `portfolio_positions` | Текущие позиции пользователя: user_id, stock_id, quantity, average_price |
+| `transactions` | Источник истины (append-only): type (`BUY`/`SELL`), quantity, price, total_amount |
 
-1. Validates `quantity` > 0.
-2. Checks user balance ≥ `current_price` × `quantity`.
-3. Appends a **BUY** transaction.
-4. Upserts the portfolio position — **weighted-average price**:
-   `(oldQty × oldAvg + buyQty × price) / (oldQty + buyQty)`.
-5. Debits balance.
+Связи: `portfolio_positions` и `transactions` ссылаются на `users` и `stocks`
+через внешние ключи. Тип операции — PostgreSQL enum `transaction_type`.
 
-### Sell (`POST /api/v1/trades/sell`)
+![Database schema](docks/db/schema.png)
 
-1. Validates `quantity` > 0.
-2. Checks a position exists for the stock + enough shares.
-3. Appends a **SELL** transaction.
-4. Decrements position quantity; deletes the position when quantity reaches 0.
-5. Credits balance.
+## Getting started
 
-### Portfolio (`GET /api/v1/portfolio`)
+1. **Клонировать репозиторий**
 
-Read-only view of current holdings. **Unrealized PnL** is computed per request:
+   ```bash
+   git clone <repo-url>
+   cd ImiTrade
+   ```
 
-```
-PnL = (currentPrice − averagePrice) × quantity    scale 4, HALF_UP
-```
+2. **Запустить PostgreSQL** (требуется установленный Docker)
 
-PnL is never persisted — it is recalculated from live `current_price` on every
-call. An empty portfolio returns `200 []`.
+   ```bash
+   docker compose up -d
+   ```
 
-### Account (`GET /api/v1/account`)
+   Поднимается контейнер `postgres:17-alpine` с БД `imitrade` на порту `5432`.
 
-Read-only account summary used as the application's main screen. Returns the
-authenticated user's balance plus live portfolio aggregates, all computed in
-memory from current holdings and live `current_price` (never persisted):
+3. **Запустить приложение**
 
-```
-portfolioValue = Σ(currentPrice × quantity)              scale 4, HALF_UP
-profitLoss     = Σ((currentPrice − averagePrice) × quantity) scale 4, HALF_UP
-totalAssets    = balance + portfolioValue                scale 4, HALF_UP
-positionsCount = number of current portfolio_positions
-```
+   ```bash
+   ./gradlew bootRun
+   ```
 
-An empty portfolio yields `portfolioValue = 0`, `profitLoss = 0`,
-`totalAssets = balance`, `positionsCount = 0`.
+   Приложение стартует на `http://localhost:8080`.
+   Flyway автоматически применит миграции при запуске.
 
-```json
-{
-  "username": "arseny",
-  "email": "arseny@example.com",
-  "balance": 12500.50,
-  "portfolioValue": 8423.30,
-  "totalAssets": 20923.80,
-  "profitLoss": 312.45,
-  "positionsCount": 4
-}
-```
+4. **Открыть Swagger UI** по адресу ниже и выполнить запросы через UI.
 
-## Run
+## Configuration
 
-```bash
-docker compose up -d        # PostgreSQL 17
-./gradlew bootRun           # starts on :8080
-```
+### PostgreSQL (Docker Compose)
 
-## API (Swagger UI)
+Параметры задаются в `docker-compose.yml`:
 
-Once the app is running:
+| Переменная | Значение по умолчанию |
+|---|---|
+| `POSTGRES_DB` | `imitrade` |
+| `POSTGRES_USER` | `imitrade` |
+| `POSTGRES_PASSWORD` | `imitrade` |
+| Порт | `5432` |
+
+### application.yaml
+
+- DataSource: `jdbc:postgresql://localhost:5432/imitrade`
+- JPA: `ddl-auto: validate` (схемой управляет Flyway, Hibernate только валидирует)
+- Flyway: `locations: classpath:db/migration`, `baseline-on-migrate: true`
+
+### Environment variables
+
+| Переменная | Описание | Значение по умолчанию |
+|---|---|---|
+| `APP_JWT_SECRET` | Секрет JWT (обязательно к переопределению в проде) | встроенный demo-ключ |
+| `APP_JWT_TTL` | Время жизни access-токена, мс | `86400000` (24 ч) |
+| `APP_MOEX_BASE_URL` | Базовый URL MOEX ISS | `https://iss.moex.com/iss` |
+| `APP_MARKET_SCHEDULER_ENABLED` | Включить планировщик обновления цен | `true` |
+| `APP_MARKET_SCHEDULER_FIXED_RATE` | Период обновления цен, мс | `60000` |
+
+## API Documentation
+
+Интерактивная документация доступна после запуска приложения:
 
 - **Swagger UI:** http://localhost:8080/swagger-ui.html
 - **OpenAPI JSON:** http://localhost:8080/v3/api-docs
 
-### How to verify manually
+Все эндпоинты версионированы префиксом `/api/v1`:
 
-1. **Register** — `POST /api/v1/auth/register`
-   ```json
-   { "email": "alice@example.com", "username": "alice", "password": "S3cret!pass" }
-   ```
-   Response → `201` with `{ "token": "...", "type": "Bearer", "expires_in": 86400 }`.
+| Метод | Эндпоинт | Доступ | Описание |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | публичный | Регистрация, возвращает JWT |
+| `POST` | `/api/v1/auth/login` | публичный | Вход, возвращает JWT |
+| `GET` | `/api/v1/users/me` | JWT | Профиль текущего пользователя |
+| `GET` | `/api/v1/account` | JWT | Сводка по аккаунту |
+| `GET` | `/api/v1/portfolio` | JWT | Текущие позиции с PnL |
+| `GET` | `/api/v1/stocks` | JWT | Каталог акций (пагинация, фильтры) |
+| `GET` | `/api/v1/stocks/{id}` | JWT | Акция по id |
+| `POST` | `/api/v1/trades/buy` | JWT | Покупка акций |
+| `POST` | `/api/v1/trades/sell` | JWT | Продажа акций |
+| `GET` | `/api/v1/transactions` | JWT | История операций (фильтры) |
 
-2. **Authorize in Swagger UI** — click **Authorize**, paste the token as
-   `Bearer <token>` (or just the raw token).
+## MOEX integration
 
-3. **Call a protected endpoint** — `GET /api/v1/users/me` → `200` with the
-   user profile (id, email, username, balance, createdAt).
+Актуальные цены получаются из MOEX ISS API (публичный marketdata, без аутентификации):
 
-4. **Login** — `POST /api/v1/auth/login` with the same credentials → new token.
+- `MoexClient` запрашивает последнее значение цены (`LAST`) для тикера.
+- `MarketDataScheduler` по расписанию `@Scheduled` (по умолчанию каждые 60 c)
+  обходит все акции и обновляет колонку `current_price` в таблице `stocks`.
+- Бизнес-модули (`TradeService`, `AccountService`) не обращаются к MOEX напрямую —
+  они читают `current_price` из БД, поэтому всегда работают с последней
+  сохранённой планировщиком ценой.
 
-5. **Negative checks:**
-   - `GET /api/v1/users/me` with no token → `401 UNAUTHENTICATED`.
-   - Same call with `Authorization: Bearer garbage` → `401 UNAUTHENTICATED`.
-   - `POST /api/v1/auth/login` with a wrong password → `401 INVALID_CREDENTIALS`.
-   - `POST /api/v1/auth/register` with a duplicate email → `409 EMAIL_ALREADY_EXISTS`.
+Параметры интеграции настраиваются в `application.yaml`
+(`app.market.*`, см. раздел [Configuration](#configuration)).
 
-6. **List stocks** — `GET /api/v1/stocks` → `200` paginated list of all
-   stocks with `ticker`, `companyName`, `exchange`, `currentPrice`.
-
-7. **Buy stock** — `POST /api/v1/trades/buy`
-   ```json
-   { "stockId": 1, "quantity": 5 }
-   ```
-   Response → `200` with `{ "transactionId", "stockTicker", "type": "BUY", "quantity", "price", "totalAmount" }`.
-
-8. **View portfolio** — `GET /api/v1/portfolio` → `200` with positions
-   including `averagePrice`, `currentPrice`, and computed `pnl`.
-
-9. **View account summary** — `GET /api/v1/account` → `200` with `username`,
-   `email`, `balance`, `portfolioValue`, `totalAssets`, `profitLoss`,
-   `positionsCount` (computed live from current holdings).
-
-9. **Sell stock** — `POST /api/v1/trades/sell`
-   ```json
-   { "stockId": 1, "quantity": 3 }
-   ```
-   Response → `200` with a `SELL` trade response.
-
-10. **Negative: insufficient balance** — `POST /api/v1/trades/buy` with a
-    quantity whose total exceeds the remaining balance → `400 INSUFFICIENT_BALANCE`.
-
-## Tests
+## Testing
 
 ```bash
 ./gradlew test
 ```
 
-| Suite                    | Type         | Coverage                                                                 |
-|--------------------------|--------------|--------------------------------------------------------------------------|
-| `JwtServiceTest`         | Unit         | Round-trip, tampered/expired/wrong-key/wrong-issuer/garbage tokens       |
-| `UserServiceTest`        | Unit         | Register rules, BCrypt hashing, initial balance, not-found               |
-| `AuthServiceTest`        | Unit         | Register/login happy path, bad password, unknown user, conflict         |
-| `AuthIntegrationTest`    | Integration  | Register/login via MockMvc + H2, duplicate email/username, hashing, 400 |
-| `SecurityAccessTest`     | Security     | Public/protected matrix, 401 without/with-invalid JWT, 200 with JWT      |
-| `StockServiceTest`        | Unit         | Paginated listing, ticker/companyName filters, not-found                  |
-| `StockRepositoryTest`    | Unit         | JPA specification queries                                                |
-| `StockControllerTest`    | Unit         | MockMvc stock endpoints                                                   |
-| `StockSecurityTest`       | Security     | Stock endpoints require JWT                                               |
-| `TradeServiceTest`        | Unit         | Buy/sell happy path, all error branches                                   |
-| `TradeIntegrationTest`    | Integration  | Buy/sell via MockMvc + PostgreSQL (Testcontainers)                        |
-| `TradeSecurityTest`       | Security     | Trade endpoints require JWT                                               |
-| `PortfolioPositionRepositoryTest` | Unit | `findByUserId`, `findByUserIdAndStockId`                       |
-| `PortfolioServiceTest`    | Unit         | PnL computation, empty portfolio                                          |
-| `PortfolioControllerTest` | Unit         | MockMvc portfolio endpoint                                                |
-| `PortfolioIntegrationTest` | Integration | Full buy → portfolio read flow (Testcontainers)                            |
-| `PortfolioSecurityTest`   | Security     | Portfolio endpoint requires JWT                                           |
-| `AccountServiceTest`      | Unit         | portfolioValue/totalAssets/profitLoss/positionsCount, empty portfolio      |
-| `AccountControllerTest`   | Unit         | MockMvc account endpoint                                                   |
-| `AccountSecurityTest`     | Security     | Account endpoint requires JWT                                              |
+| Категория | Что покрывает | Примеры классов |
+|---|---|---|
+| **Unit** | Сервисный слой, парсинг JWT, логика PnL, валидации | `TradeServiceTest`, `AuthServiceTest`, `JwtServiceTest`, `PortfolioServiceTest`, `AccountServiceTest` |
+| **Integration** | Полный стек через MockMvc против БД | `AuthIntegrationTest`, `TradeIntegrationTest`, `PortfolioIntegrationTest`, `MarketDataSchedulerIntegrationTest` |
+| **Security** | Матрица доступа: 401/403 без токена, 200 с JWT | `SecurityAccessTest`, `StockSecurityTest`, `TradeSecurityTest`, `PortfolioSecurityTest`, `AccountSecurityTest`, `TransactionSecurityTest` |
 
-Integration/security tests use the **real security layer** (no mocking) and an
-**in-memory H2** (PostgreSQL compatibility mode) via the `test` profile.
+Интеграционные и security-тесты используют реальную security-цепочку.
+Часть тестов работает на H2, часть — на реальном PostgreSQL через Testcontainers.
 
----
+## License
 
-![schema.png](docks/db/schema.png)
+TODO: в репозитории нет файла лицензии. Добавьте файл `LICENSE` и выберите тип лицензии.

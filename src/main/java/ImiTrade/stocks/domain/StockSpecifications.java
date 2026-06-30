@@ -14,7 +14,7 @@ public final class StockSpecifications {
     private StockSpecifications() {
     }
 
-    /** Case-insensitive exact match on {@code ticker} (e.g. {@code ?ticker=AAPL}). */
+    /** Case-insensitive exact match on {@code ticker} (e.g. {@code ?ticker=SBER}). */
     public static Specification<Stock> hasTickerIgnoreCase(String ticker) {
         if (ticker == null || ticker.isBlank()) {
             return null;
@@ -22,7 +22,7 @@ public final class StockSpecifications {
         return (root, query, cb) -> cb.equal(cb.lower(root.get("ticker")), ticker.toLowerCase());
     }
 
-    /** Case-insensitive partial match on {@code company_name} (e.g. {@code ?companyName=Apple}). */
+    /** Case-insensitive partial match on {@code company_name} (e.g. {@code ?companyName=Сбербанк}). */
     public static Specification<Stock> companyNameContainsIgnoreCase(String companyName) {
         if (companyName == null || companyName.isBlank()) {
             return null;

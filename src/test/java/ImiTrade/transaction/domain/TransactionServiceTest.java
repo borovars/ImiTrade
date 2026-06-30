@@ -47,7 +47,7 @@ class TransactionServiceTest {
         when(transactionRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(buy, sell), pageable, 2));
         when(stockRepository.findAllById(any()))
-                .thenReturn(List.of(stock(1L, "AAPL")));
+                .thenReturn(List.of(stock(1L, "SBER")));
 
         Page<TransactionResponse> result = transactionService.getTransactions(USER_ID, null, null, pageable);
 
@@ -55,7 +55,7 @@ class TransactionServiceTest {
         TransactionResponse first = result.getContent().get(0);
         assertThat(first.id()).isEqualTo(10L);
         assertThat(first.stockId()).isEqualTo(1L);
-        assertThat(first.ticker()).isEqualTo("AAPL");
+        assertThat(first.ticker()).isEqualTo("SBER");
         assertThat(first.type()).isEqualTo("BUY");
         assertThat(first.quantity()).isEqualTo(10);
         assertThat(first.totalAmount()).isEqualByComparingTo("2105.0000");
@@ -72,7 +72,7 @@ class TransactionServiceTest {
         when(transactionRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(buy), pageable, 1));
         when(stockRepository.findAllById(any()))
-                .thenReturn(List.of(stock(1L, "AAPL")));
+                .thenReturn(List.of(stock(1L, "SBER")));
 
         Page<TransactionResponse> result =
                 transactionService.getTransactions(USER_ID, TransactionType.BUY, null, pageable);
@@ -90,7 +90,7 @@ class TransactionServiceTest {
         when(transactionRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(buy), pageable, 1));
         when(stockRepository.findAllById(any()))
-                .thenReturn(List.of(stock(1L, "AAPL")));
+                .thenReturn(List.of(stock(1L, "SBER")));
 
         Page<TransactionResponse> result =
                 transactionService.getTransactions(USER_ID, null, 1L, pageable);
@@ -136,7 +136,7 @@ class TransactionServiceTest {
                 .id(id)
                 .ticker(ticker)
                 .companyName("C")
-                .exchange("NASDAQ")
+                .exchange("MOEX")
                 .currentPrice(new BigDecimal("1.0000"))
                 .build();
     }

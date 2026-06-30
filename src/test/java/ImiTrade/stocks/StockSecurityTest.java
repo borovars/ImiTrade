@@ -43,8 +43,8 @@ class StockSecurityTest {
     @BeforeEach
     void setUp() {
         stockRepository.save(Stock.builder()
-                .ticker("AAPL").companyName("Apple Inc.").exchange("NASDAQ")
-                .currentPrice(new BigDecimal("212.3500")).build());
+                .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new BigDecimal("310.5000")).build());
     }
 
     @Test
@@ -71,7 +71,7 @@ class StockSecurityTest {
         mockMvc.perform(get("/api/v1/stocks")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].ticker").value("AAPL"));
+                .andExpect(jsonPath("$.content[0].ticker").value("SBER"));
     }
 
     private String registerAndExtractToken() throws Exception {

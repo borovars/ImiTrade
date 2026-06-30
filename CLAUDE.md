@@ -10,6 +10,9 @@ Current state:
 - Stock catalog (read-only) ✓
 - Trading (buy/sell) ✓
 - Portfolio (read view with live PnL) ✓
+- Account summary (balance + live portfolio aggregates) ✓
+- Transaction history (read-only, filterable) ✓
+- Live price updates from MOEX ISS API (scheduled) ✓
 
 Main business entities:
 - User
@@ -19,6 +22,8 @@ Main business entities:
 
 Transactions are the source of truth.
 PortfolioPosition stores aggregated current holdings.
+`stocks.current_price` is kept in sync with MOEX by a scheduler; all trades and
+PnL/account aggregates read the persisted price — business modules never call MOEX directly.
 ## Tech Stack
 
 | Layer         | Technology                                       |
@@ -34,7 +39,8 @@ PortfolioPosition stores aggregated current holdings.
 | API Docs      | springdoc-openapi 2.8.9 (Swagger UI at /swagger-ui.html) |
 | Lombok        | Compile-time annotation processing               |
 | Validation    | Jakarta Bean Validation (spring-boot-starter-validation) |
-| Test DB       | H2 in-memory (PostgreSQL compatibility mode)      |
+| HTTP client   | Spring `RestClient` (MOEX marketdata calls)      |
+| Test DB       | Testcontainers (PostgreSQL 17) + H2 in-memory (PostgreSQL compatibility mode) |
 
 ## Architecture
 
@@ -55,8 +61,11 @@ src/main/java/ImiTrade/
 │   ├── web/StockController.java
 │   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java
 │   └── dto/StockResponse.java
-├── transaction/                 # Transaction aggregate (entity + repo + enum)
-│   └── domain/Transaction.java, TransactionRepository.java, TransactionType.java
+├── transaction/                 # Transaction aggregate (entity + repo + enum + history read)
+│   ├── web/TransactionController.java  # GET /api/v1/transactions (filterable, paginated)
+│   ├── domain/TransactionService.java, Transaction.java, TransactionRepository.java,
+│   │           TransactionSpecifications.java, TransactionType.java
+│   └── dto/TransactionResponse.java
 ├── trading/                     # Buy/sell orchestration
 │   ├── web/TradeController.java
 │   ├── domain/TradeService.java
@@ -65,6 +74,14 @@ src/main/java/ImiTrade/
 │   ├── web/PortfolioController.java
 │   ├── domain/PortfolioService.java, PortfolioPosition.java, PortfolioPositionRepository.java
 │   └── dto/PortfolioResponse.java
+├── account/                     # Account summary (main screen)
+│   ├── web/AccountController.java
+│   ├── domain/AccountService.java  # computes portfolioValue/totalAssets/profitLoss in memory
+│   └── dto/AccountResponse.java
+├── market/                      # MOEX ISS integration + price-refresh scheduler
+│   ├── client/MoexClient.java + dto/   # RestClient call to MOEX marketdata
+│   ├── domain/MarketDataService.java, MarketDataScheduler.java
+│   └── config/MarketClientConfig.java, MarketProperties.java, SchedulerProperties.java
 ├── security/                    # JWT infrastructure
 │   ├── SecurityFilterChainConfig.java
 │   ├── JwtService.java, JwtProperties.java
@@ -89,7 +106,11 @@ Each feature module follows a strict **3-layer** pattern:
 
 Cross-module dependencies flow **inward**: controllers → services → repositories. A service in one module may call services in other modules (e.g., `AuthService` → `UserService`, `TradeService` → `UserService` + `StockService`). Controllers never call other controllers.
 
-The `transaction/` package holds the Transaction entity, repository, and enum; the buy/sell orchestration logic lives in `trading/`. This separation keeps the write model (transaction) distinct from the application service (trade).
+The `transaction/` package holds the Transaction entity, repository, enum, the
+history read model (`TransactionService` + `TransactionController` + DTO), and the
+JPA `Specification`s used for filtering. The buy/sell **write** orchestration lives
+in `trading/`. This separation keeps the write model (transaction) distinct from
+the application service (trade).
 
 ### Package Naming
 
@@ -115,7 +136,7 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 
 - Base path: `/api/v1/`
 - Public endpoints: `/api/v1/auth/**`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
-- JWT-protected endpoints: `/api/v1/users/**`, `/api/v1/stocks/**`, `/api/v1/trades/**`, `/api/v1/portfolio`
+- JWT-protected endpoints: `/api/v1/users/**`, `/api/v1/stocks/**`, `/api/v1/trades/**`, `/api/v1/portfolio`, `/api/v1/account`, `/api/v1/transactions`
 - All other endpoints require `Authorization: Bearer <jwt>` (enforced via `anyRequest().authenticated()`)
 - Standard error envelope (`ApiResponse` record): `{ timestamp, status, error, code, message, path, details }`
 - Error codes are constants in `common/web/ErrorCodes.java` — always use `UPPER_SNAKE_CASE`
@@ -154,6 +175,8 @@ common/exception/
 ├── InsufficientBalanceException       # 400
 ├── InsufficientStockQuantityException # 400
 ├── PortfolioPositionNotFoundException # 404
+├── MarketDataUnavailableException     # 503 (MOEX ISS unreachable / no price)
+├── InvalidTickerException             # 404 (ticker not found on MOEX)
 ├── InvalidCredentialsException       # 401 (used in login to prevent user enumeration)
 └── AuthException                     # Base for auth-related errors
 ```
@@ -181,17 +204,22 @@ All error code constants live in `common/web/ErrorCodes.java`:
 | `INSUFFICIENT_BALANCE` | `InsufficientBalanceException` | 400 |
 | `INSUFFICIENT_STOCK_QUANTITY` | `InsufficientStockQuantityException` | 400 |
 | `PORTFOLIO_POSITION_NOT_FOUND` | `PortfolioPositionNotFoundException` | 404 |
+| `MARKET_DATA_UNAVAILABLE` | `MarketDataUnavailableException` | 503 |
+| `INVALID_TICKER` | `InvalidTickerException` | 404 |
 | `INTERNAL_ERROR` | catch-all `Exception` | 500 |
+
+Note: most codes are constants in `ErrorCodes.java`, but a few are still inlined
+as string literals in `GlobalExceptionHandler` (e.g. `USER_NOT_FOUND`). Prefer
+adding a constant in `ErrorCodes` for new codes.
 
 ## Testing
 
 - Framework: JUnit 5 (via spring-boot-starter-test)
-- Profiles: `application-test.yaml` uses H2 in-memory with PostgreSQL mode
-- Test schema: `src/test/resources/schema.sql` (Flyway disabled in test)
+- DB strategy: tests either use H2 (`test` profile, PostgreSQL compatibility mode, Flyway disabled, schema in `src/test/resources/schema.sql`) or real PostgreSQL via Testcontainers (`PostgresTestBase`) — the latter is required for the `transaction_type` PostgreSQL enum
 - Test types:
     - **Unit tests** (`*Test.java`): Service layer with Mockito mocks
     - **Integration tests** (`*IntegrationTest.java`): MockMvc + real security + H2 or Testcontainers
-    - **Security tests** (`SecurityAccessTest.java`, `StockSecurityTest.java`, `TradeSecurityTest.java`, `PortfolioSecurityTest.java`): Full filter chain verification
+    - **Security tests** (`*SecurityTest.java`): Full filter chain verification (401 without/invalid JWT, 200 with JWT, per-endpoint matrix)
 - Test suites:
     - **auth**: `AuthServiceTest`, `AuthIntegrationTest`
     - **user**: `UserServiceTest`
@@ -199,15 +227,23 @@ All error code constants live in `common/web/ErrorCodes.java`:
     - **stocks**: `StockServiceTest`, `StockRepositoryTest`, `StockControllerTest`, `StockSecurityTest`
     - **trading**: `TradeServiceTest`, `TradeIntegrationTest`, `TradeSecurityTest`
     - **portfolio**: `PortfolioPositionRepositoryTest`, `PortfolioServiceTest`, `PortfolioControllerTest`, `PortfolioIntegrationTest`, `PortfolioSecurityTest`
-- Trade and portfolio integration/security tests extend `PostgresTestBase` (Testcontainers with PostgreSQL 17) because they rely on the `transaction_type` PostgreSQL enum. Stock and auth tests run on H2.
+    - **account**: `AccountServiceTest`, `AccountControllerTest`, `AccountSecurityTest`
+    - **transaction**: `TransactionServiceTest`, `TransactionRepositoryTest`, `TransactionControllerTest`, `TransactionSecurityTest`
+    - **market**: `MoexClientTest`, `MarketDataServiceTest`, `MarketDataSchedulerTest`, `MarketDataSchedulerIntegrationTest`
+- Integration/security tests that touch the `transaction_type` enum extend `PostgresTestBase` (Testcontainers, PostgreSQL 17). Auth and simpler controller tests run on H2. The full suite runs sequentially (`maxParallelForks = 1`) because several classes spin up their own Testcontainers PostgreSQL.
 - Run: `./gradlew test`
 
 ## Configuration
 
 - Production config: `src/main/resources/application.yaml`
 - Test config: `src/test/resources/application-test.yaml`
-- JWT secret is injected via `APP_JWT_SECRET` env var (has a dev default, must override in prod)
 - Server port: 8080
+- Environment variables (all optional, have dev defaults):
+    - `APP_JWT_SECRET` — JWT signing secret (must override in prod)
+    - `APP_JWT_TTL` — access token lifetime in ms (default `86400000`, 24h)
+    - `APP_MOEX_BASE_URL` — MOEX ISS root (default `https://iss.moex.com/iss`)
+    - `APP_MARKET_SCHEDULER_ENABLED` — enable price-refresh scheduler (default `true`)
+    - `APP_MARKET_SCHEDULER_FIXED_RATE` — refresh period in ms (default `60000`)
 
 ## Common Commands
 
@@ -234,6 +270,12 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 - **Sell**: validates quantity > 0, checks position exists + sufficient shares, saves SELL transaction, removes position at quantity 0 (otherwise decrements), credits balance
 - Virtual-money settlement: `balance -= total` on buy, `balance += total` on sell
 - **PnL** = `(currentPrice − averagePrice) × quantity` (scale 4, HALF_UP), computed in-memory per request, never persisted
+- **Account aggregates** (computed in-memory in `AccountService`, never persisted):
+    - `portfolioValue = Σ(quantity × currentPrice)` (scale 4, HALF_UP)
+    - `profitLoss     = Σ((currentPrice − averagePrice) × quantity)` (scale 4, HALF_UP)
+    - `totalAssets    = balance + portfolioValue` (scale 4, HALF_UP)
+    - `positionsCount = number of current portfolio_positions`
+- **MOEX price flow**: `MoexClient` fetches the `LAST` price for a ticker; `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice`; trade/account/portfolio logic reads `current_price` from the DB, so it always uses the last value the scheduler persisted
 - Transactions are the source of truth for trade history
 
 ## DO / DON'T

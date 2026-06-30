@@ -62,10 +62,10 @@ class AccountServiceTest {
                 .quantity(5).averagePrice(new BigDecimal("400.0000")).build();
         when(portfolioPositionRepository.findByUserId(USER_ID)).thenReturn(List.of(p1, p2));
 
-        Stock s1 = Stock.builder().id(1L).ticker("AAPL").companyName("Apple Inc.")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("215.1000")).build();
-        Stock s2 = Stock.builder().id(2L).ticker("MSFT").companyName("Microsoft Corporation")
-                .exchange("NASDAQ").currentPrice(new BigDecimal("420.0000")).build();
+        Stock s1 = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк")
+                .exchange("MOEX").currentPrice(new BigDecimal("215.1000")).build();
+        Stock s2 = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром")
+                .exchange("MOEX").currentPrice(new BigDecimal("420.0000")).build();
         when(stockRepository.findAllById(any())).thenReturn(List.of(s1, s2));
 
         AccountResponse result = accountService.getCurrentAccount(USER_ID);

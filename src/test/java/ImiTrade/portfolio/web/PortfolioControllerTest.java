@@ -74,7 +74,7 @@ class PortfolioControllerTest {
     @Test
     void getPortfolioReturnsList() throws Exception {
         PortfolioResponse line = new PortfolioResponse(
-                1L, "AAPL", "Apple Inc.", 10,
+                1L, "SBER", "Сбербанк", 10,
                 new BigDecimal("210.5000"), new BigDecimal("215.1000"), new BigDecimal("46.0000"));
         given(portfolioService.getPortfolio(USER_ID)).willReturn(List.of(line));
 
@@ -83,8 +83,8 @@ class PortfolioControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$[0].stockId").value(1))
-                .andExpect(jsonPath("$[0].ticker").value("AAPL"))
-                .andExpect(jsonPath("$[0].companyName").value("Apple Inc."))
+                .andExpect(jsonPath("$[0].ticker").value("SBER"))
+                .andExpect(jsonPath("$[0].companyName").value("Сбербанк"))
                 .andExpect(jsonPath("$[0].quantity").value(10))
                 .andExpect(jsonPath("$[0].averagePrice").value(210.50))
                 .andExpect(jsonPath("$[0].currentPrice").value(215.10))
