@@ -25,6 +25,9 @@ public record RegisterRequest(
         @Schema(description = "Plain-text password (will be BCrypt-hashed)", example = "S3cret!pass")
         @NotBlank
         @Size(min = 8, max = 100)
-        String password
+        String password,
+
+        @Schema(description = "Optional guest token to convert an existing guest account", example = "8c33bb2e-8d4b-4e0c-b57d-0dce5f6c4e3f")
+        String guestToken
 ) {
 }

@@ -49,7 +49,7 @@ class AuthServiceTest {
     @DisplayName("register: delegates to UserService and returns a token")
     @Test
     void registerReturnsToken() {
-        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass", null);
         User user = sampleUser();
         when(userService.register(req.email(), req.username(), req.password())).thenReturn(user);
         when(jwtService.issueToken(user.getId(), user.getEmail())).thenReturn("jwt-token");
@@ -63,10 +63,37 @@ class AuthServiceTest {
         verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
 
+    @DisplayName("register: with guestToken converts guest and returns a token")
+    @Test
+    void registerWithGuestTokenConvertsGuest() {
+        String token = "8c33bb2e-8d4b-4e0c-b57d-0dce5f6c4e3f";
+        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass", token);
+        User guest = sampleGuest();
+        User registered = sampleUser();
+        when(userService.getByGuestToken(java.util.UUID.fromString(token))).thenReturn(guest);
+        when(userService.convertGuestToRegistered(guest, req.email(), req.username(), req.password())).thenReturn(registered);
+        when(jwtService.issueToken(registered.getId(), registered.getEmail())).thenReturn("jwt-token");
+        when(jwtService.getAccessTokenTtlMillis()).thenReturn(3_600_000L);
+
+        AuthResponse res = authService.register(req);
+
+        assertThat(res.token()).isEqualTo("jwt-token");
+        verify(userService, never()).register(anyString(), anyString(), anyString());
+    }
+
+    @DisplayName("register: invalid guestToken throws InvalidGuestTokenException")
+    @Test
+    void registerWithInvalidGuestToken() {
+        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass", "not-a-uuid");
+
+        assertThatThrownBy(() -> authService.register(req))
+                .isInstanceOf(ImiTrade.common.exception.InvalidGuestTokenException.class);
+    }
+
     @DisplayName("register: propagates duplicate-email error from UserService")
     @Test
     void registerPropagatesConflict() {
-        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "S3cret!pass", null);
         when(userService.register(anyString(), anyString(), anyString()))
                 .thenThrow(new EmailAlreadyExistsException("alice@example.com"));
 
@@ -124,6 +151,17 @@ class AuthServiceTest {
                 .username("alice")
                 .passwordHash("$2a$10$hash")
                 .balance(new BigDecimal("500000.0000"))
+                .isGuest(false)
+                .createdAt(Instant.now())
+                .build();
+    }
+
+    private static User sampleGuest() {
+        return User.builder()
+                .id(2L)
+                .balance(new BigDecimal("100000.0000"))
+                .isGuest(true)
+                .guestToken(java.util.UUID.fromString("8c33bb2e-8d4b-4e0c-b57d-0dce5f6c4e3f"))
                 .createdAt(Instant.now())
                 .build();
     }

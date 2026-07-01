@@ -13,6 +13,7 @@ Current state:
 - Account summary (balance + live portfolio aggregates) ✓
 - Transaction history (read-only, filterable) ✓
 - Live price updates from MOEX ISS API (scheduled) ✓
+- **Guest Mode** (create guest, X-Guest-Token auth, convert to registered user with bonus) ✓
 
 Main business entities:
 - User
@@ -86,8 +87,13 @@ src/main/java/ImiTrade/
 │   ├── SecurityFilterChainConfig.java
 │   ├── JwtService.java, JwtProperties.java
 │   ├── JwtAuthenticationFilter.java, JwtAuthentication.java
+│   ├── GuestAuthenticationFilter.java  # X-Guest-Token authentication
 │   ├── JwtAuthenticationEntryPoint.java, JwtAccessDeniedHandler.java
 │   └── AuthenticatedUser.java
+├── guest/                       # Guest user creation
+│   ├── web/GuestController.java
+│   ├── domain/GuestService.java
+│   └── dto/GuestResponse.java
 └── common/                      # Shared utilities
     ├── web/GlobalExceptionHandler.java, ApiResponse.java, ErrorCodes.java
     └── exception/               # Domain exception hierarchy
@@ -123,21 +129,22 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 
 | Table               | Purpose                        |
 |---------------------|--------------------------------|
-| `users`              | User accounts, balance, auth                                   |
+| `users`              | User accounts, balance, auth, **is_guest**, **guest_token** |
 | `stocks`             | Read-only stock catalog (current_price added by V3)            |
 | `portfolio_positions`| User stock holdings                                              |
 | `transactions`      | Buy/sell history                                                 |
 
-**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`.
+**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**.
 
 **Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
 
 ## API Conventions
 
 - Base path: `/api/v1/`
-- Public endpoints: `/api/v1/auth/**`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
+- Public endpoints: `/api/v1/auth/**`, `/api/v1/guest`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
 - JWT-protected endpoints: `/api/v1/users/**`, `/api/v1/stocks/**`, `/api/v1/trades/**`, `/api/v1/portfolio`, `/api/v1/account`, `/api/v1/transactions`
-- All other endpoints require `Authorization: Bearer <jwt>` (enforced via `anyRequest().authenticated()`)
+- **Guest access**: all JWT-protected endpoints also accept `X-Guest-Token` header (UUID) for guest users
+- All other endpoints require `Authorization: Bearer <jwt>` or `X-Guest-Token` (enforced via `anyRequest().authenticated()`)
 - Standard error envelope (`ApiResponse` record): `{ timestamp, status, error, code, message, path, details }`
 - Error codes are constants in `common/web/ErrorCodes.java` — always use `UPPER_SNAKE_CASE`
 
@@ -178,6 +185,8 @@ common/exception/
 ├── MarketDataUnavailableException     # 503 (MOEX ISS unreachable / no price)
 ├── InvalidTickerException             # 404 (ticker not found on MOEX)
 ├── InvalidCredentialsException       # 401 (used in login to prevent user enumeration)
+├── InvalidGuestTokenException         # 401 (invalid or missing X-Guest-Token)
+├── GuestAlreadyRegisteredException    # 409 (guest already converted to registered)
 └── AuthException                     # Base for auth-related errors
 ```
 
@@ -206,6 +215,8 @@ All error code constants live in `common/web/ErrorCodes.java`:
 | `PORTFOLIO_POSITION_NOT_FOUND` | `PortfolioPositionNotFoundException` | 404 |
 | `MARKET_DATA_UNAVAILABLE` | `MarketDataUnavailableException` | 503 |
 | `INVALID_TICKER` | `InvalidTickerException` | 404 |
+| `INVALID_GUEST_TOKEN` | `InvalidGuestTokenException` | 401 |
+| `GUEST_ALREADY_REGISTERED` | `GuestAlreadyRegisteredException` | 409 |
 | `INTERNAL_ERROR` | catch-all `Exception` | 500 |
 
 Note: most codes are constants in `ErrorCodes.java`, but a few are still inlined
@@ -219,10 +230,11 @@ adding a constant in `ErrorCodes` for new codes.
 - Test types:
     - **Unit tests** (`*Test.java`): Service layer with Mockito mocks
     - **Integration tests** (`*IntegrationTest.java`): MockMvc + real security + H2 or Testcontainers
-    - **Security tests** (`*SecurityTest.java`): Full filter chain verification (401 without/invalid JWT, 200 with JWT, per-endpoint matrix)
+    - **Security tests** (`*SecurityTest.java`): Full filter chain verification (401 without/invalid JWT, 200 with JWT or X-Guest-Token, per-endpoint matrix)
 - Test suites:
     - **auth**: `AuthServiceTest`, `AuthIntegrationTest`
     - **user**: `UserServiceTest`
+    - **guest**: `GuestServiceTest`, `GuestIntegrationTest`, `GuestFlowIntegrationTest`
     - **security**: `JwtServiceTest`, `SecurityAccessTest`
     - **stocks**: `StockServiceTest`, `StockRepositoryTest`, `StockControllerTest`, `StockSecurityTest`
     - **trading**: `TradeServiceTest`, `TradeIntegrationTest`, `TradeSecurityTest`
@@ -264,6 +276,9 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 ## Business Rules
 
 - Initial balance: every new user receives `500000.0000` virtual money (`UserService.INITIAL_BALANCE`)
+- **Guest balance**: every new guest receives `100000.0000` virtual money (`UserService.GUEST_INITIAL_BALANCE`)
+- **Guest registration bonus**: `400000.0000` (`UserService.GUEST_REGISTRATION_BONUS`) added when a guest converts to a registered user
+- **Guest conversion**: sets `is_guest = false`, `guest_token = null`, fills `email/username/password_hash`, adds bonus to existing balance. Portfolio and transactions are preserved under the same `user_id`.
 - Login never reveals whether an email is registered (same 401 for "wrong password" and "no such user")
 - Stocks are read-only: seeded by Flyway, not modifiable through the API
 - **Buy**: validates quantity > 0, checks balance ≥ price × qty, saves BUY transaction, upserts position with weighted-average price: `(oldQty×oldAvg + buyQty×price) / (oldQty+buyQty)` (scale 4, HALF_UP), debits balance
