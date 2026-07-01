@@ -37,7 +37,7 @@ class SecurityAccessTest {
     @Test
     @DisplayName("/api/v1/auth/register is reachable without a token (201)")
     void registerIsPublic() throws Exception {
-        RegisterRequest req = new RegisterRequest("pub@example.com", "pubuser", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest("pub@example.com", "pubuser", "S3cret!pass", null);
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -77,7 +77,7 @@ class SecurityAccessTest {
     @DisplayName("secured endpoint returns 200 with a valid JWT")
     void securedWithValidTokenIs200() throws Exception {
         // first register so the user exists in the DB; reuse the returned token
-        RegisterRequest req = new RegisterRequest("sec@example.com", "secuser", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest("sec@example.com", "secuser", "S3cret!pass", null);
         String responseBody = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -90,5 +90,56 @@ class SecurityAccessTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("sec@example.com"))
                 .andExpect(jsonPath("$.username").value("secuser"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/guest is public (201)")
+    void guestEndpointIsPublic() throws Exception {
+        mockMvc.perform(post("/api/v1/guest"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.guestToken").isNotEmpty())
+                .andExpect(jsonPath("$.balance").value(100000.0));
+    }
+
+    @Test
+    @DisplayName("secured endpoint returns 200 with a valid guest token")
+    void securedWithValidGuestTokenIs200() throws Exception {
+        String guestResponse = mockMvc.perform(post("/api/v1/guest"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String guestToken = objectMapper.readTree(guestResponse).get("guestToken").asText();
+
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("X-Guest-Token", guestToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNumber());
+    }
+
+    @Test
+    @DisplayName("secured endpoint returns 401 with an invalid guest token")
+    void securedWithInvalidGuestTokenIs401() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("X-Guest-Token", "not-a-real-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    @DisplayName("JWT takes precedence over guest token when both are present")
+    void jwtTakesPrecedenceOverGuestToken() throws Exception {
+        RegisterRequest req = new RegisterRequest("jwt@example.com", "jwtuser", "S3cret!pass", null);
+        String responseBody = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String jwt = objectMapper.readTree(responseBody).get("token").asText();
+
+        // Even with a random guest token, the valid JWT should win
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Guest-Token", "not-a-real-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("jwt@example.com"));
     }
 }

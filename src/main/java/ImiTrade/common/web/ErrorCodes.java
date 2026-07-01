@@ -16,6 +16,8 @@ public final class ErrorCodes {
     public static final String PORTFOLIO_POSITION_NOT_FOUND = "PORTFOLIO_POSITION_NOT_FOUND";
     public static final String MARKET_DATA_UNAVAILABLE = "MARKET_DATA_UNAVAILABLE";
     public static final String INVALID_TICKER         = "INVALID_TICKER";
+    public static final String INVALID_GUEST_TOKEN     = "INVALID_GUEST_TOKEN";
+    public static final String GUEST_ALREADY_REGISTERED = "GUEST_ALREADY_REGISTERED";
     public static final String INTERNAL_ERROR          = "INTERNAL_ERROR";
 
     private ErrorCodes() {

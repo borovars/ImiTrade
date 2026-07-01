@@ -44,7 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.security.jwt.secret-key=dGVzdC1zZWNyZXQta2V5LWZvci1iYWNrZW5kLXVuaXQtdGVzdHMtb25seS1uby1wcm9kdWN0aW9uLXVzZS1zdHJvbmctbGVuZ3RoLWtleQ==",
         "app.security.jwt.access-token-ttl=3600000",
-        "app.security.jwt.issuer=imitrade"
+        "app.security.jwt.issuer=imitrade",
+        "app.market.scheduler.enabled=false"
 })
 class TransactionSecurityTest extends PostgresTestBase {
 
@@ -74,7 +75,7 @@ class TransactionSecurityTest extends PostgresTestBase {
     }
 
     private String registerAndExtractToken() throws Exception {
-        RegisterRequest req = new RegisterRequest(EMAIL, "txuser", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest(EMAIL, "txuser", "S3cret!pass", null);
         String body = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))

@@ -99,7 +99,7 @@ class MarketDataSchedulerIntegrationTest extends PostgresTestBase {
 
         // 2) a buy trade must price at the refreshed value (1 share @ 999.0000 = 999.0000)
         String token = registerAndExtractToken(
-                new RegisterRequest("trader@example.com", "trader", "S3cret!pass"));
+                new RegisterRequest("trader@example.com", "trader", "S3cret!pass", null));
 
         MvcResult result = mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
