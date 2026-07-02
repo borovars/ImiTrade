@@ -42,3 +42,22 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+# dependencies
+node_modules/
+
+# production
+dist/
+
+# logs
+*.log
+
+# env
+.env
+.env.local
+
+# editor
+.idea/
+
+# OS
+Thumbs.db
