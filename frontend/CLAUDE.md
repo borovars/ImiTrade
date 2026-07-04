@@ -197,6 +197,71 @@ export async function getAccount(): Promise<AccountResponse> {
 диалоги монтируются там же с локальным состоянием. После успешной сделки диалог
 закрывается, тост успеха показывается в `onSuccess` хука.
 
+## Feature: portfolio (только чтение)
+
+Read-only фича позиций пользователя. Структура:
+
+- `types/portfolioTypes.ts` — `PortfolioPosition` (по контракту backend:
+  `{ stockId, ticker, companyName, quantity, averagePrice, currentPrice, pnl }`).
+  `GET /api/v1/portfolio` отдаёт **простой массив** (не Spring Page).
+- `api/portfolioApi.ts` — `getPortfolio()` через `apiClient.get`.
+- `model/usePortfolioQuery.ts` — `useQuery` с `queryKeys.portfolio`.
+- `ui/PortfolioTable.tsx` — Material UI Table со столбцами Ticker, Company,
+  Quantity, Average Price, Current Price, Position Value, Profit/Loss, Actions.
+
+Принципы фичи:
+
+- **Финансовые показатели берутся из backend**: `pnl` уже рассчитан
+  (`(currentPrice - averagePrice) * quantity`) и не пересчитывается на фронте.
+  Единственное производное значение — Position Value = `quantity * currentPrice`
+  (display-умножение из примитивов backend, не пересчёт агрегатов).
+- **Profit/Loss** — цветовая индикация через тему MUI (зелёный/красный/нейтрально)
+  общей функцией `formatProfitLoss` из `shared/utils/format.ts`. Цвета берутся из
+  темы (`success.main` / `error.main` / `text.primary`), жёстко не прописываются.
+- **Продажа** — кнопка Sell в каждой строке открывает переиспользованный
+  `SellStockDialog` из `features/trading/ui/`. Новая логика продажи не пишется.
+  Позиция портфеля адаптируется в объект формы `Stock` (`stockId` → `id`,
+  `exchange` пустой — он не нужен для продажи).
+- **Автообновление** — после успешной продажи существующие trading-мутации уже
+  инвалидируют `queryKeys.portfolio`/`account`/`stocks`/`transactions`, поэтому
+  таблица портфеля и Dashboard обновляются без правок в trading.
+- **Состояния** (loading/error/empty) обрабатываются на странице
+  `pages/PortfolioPage.tsx`: Skeleton при загрузке, блок ошибки с кнопкой Retry,
+  empty-state с приглашением купить первую акцию на странице Stocks.
+
+## Feature: transactions (только чтение)
+
+Read-only фича истории торговых операций. Структура:
+
+- `types/transactionsTypes.ts` — `Transaction` (по контракту backend
+  `TransactionResponse`: `{ id, type: 'BUY'|'SELL', ticker, quantity, price,
+  totalAmount, createdAt }`) и `TransactionPage` (обёртка Spring Page:
+  `{ content, totalElements, totalPages, size, number }`).
+  `GET /api/v1/transactions` отдаёт **Spring Page** (по умолчанию size=20,
+  DESC по `createdAt`), а не простой массив — этим отличается от portfolio.
+- `api/transactionsApi.ts` — `getTransactions()` через `apiClient.get`,
+  возвращает всю `TransactionPage` (метаданные пагинации сохраняются для
+  будущей готовности, UI пока рендерит только `content`).
+- `model/useTransactionsQuery.ts` — `useQuery` с `queryKeys.transactions`.
+- `ui/TransactionsTable.tsx` — Material UI Table со столбцами Date, Type,
+  Ticker, Quantity, Price, Total Amount. Чисто презентационный (без Actions).
+
+Принципы фичи:
+
+- **Read-only**: никаких действий/диалогов; данные только отображаются.
+- **Type (BUY/SELL)** — цветовая индикация через тему MUI: BUY → `success.main`
+  (зелёный), SELL → `error.main` (красный). Цвета берутся из темы, жёстко не
+  прописываются.
+- **Дата** — через общий хелпер `formatDateTime` из `shared/utils/format.ts`
+  (детерминированный формат `yyyy-mm-dd hh:mm`, не браузерная локаль).
+- **Деньги** (price, totalAmount) — через `formatMoney`.
+- **Автообновление** — после успешной сделки существующие trading-мутации уже
+  инвалидируют `queryKeys.transactions`, поэтому таблица обновляется без правок
+  в trading.
+- **Состояния** (loading/error/empty) обрабатываются на странице
+  `pages/TransactionsPage.tsx`: Skeleton при загрузке, блок ошибки с кнопкой
+  Retry, empty-state с приглашением начать торговать.
+
 ## Где хранится API
 
 - `shared/api/` — общий `apiClient` (Axios), интерсепторы, `endpoints`, общие типы.
@@ -205,7 +270,10 @@ export async function getAccount(): Promise<AccountResponse> {
 ## Где хранится общая логика
 
 - `shared/lib/` — `queryKeys`, `apiError`, `storage`.
-- `shared/utils/` — чистые функции (например, `formatMoney`).
+- `shared/utils/` — чистые функции: `formatMoney` (денежный формат),
+  `formatProfitLoss` (PnL со знаком `+`/`−` и цветом по теме MUI — используется
+  в `account` и `portfolio`), `formatDateTime` (дата/время `yyyy-mm-dd hh:mm` —
+  используется в `transactions`).
 - `shared/hooks/` — (зарезервировано) общие хуки.
 
 ## Где хранить типы
@@ -223,6 +291,13 @@ export async function getAccount(): Promise<AccountResponse> {
 - **Деньги**: всегда через `formatMoney(value)` из `shared/utils/format.ts`
   (группировка пробелом, точка как разделитель; без символа валюты). Backend отдаёт
   `BigDecimal`, который Jackson сериализует в JSON-число → фронтовые типы используют `number`.
+- **Дата/время**: всегда через `formatDateTime(value)` из `shared/utils/format.ts`
+  (детерминированный `yyyy-mm-dd hh:mm`, единый вид во всех компонентах; не
+  использовать браузерную локаль `toLocaleString()` напрямую в фичах).
+- **Прибыль/убыток (PnL)**: отображается через общую `formatProfitLoss(value)` из
+  `shared/utils/format.ts` — возвращает текст со знаком (`+`/`−`/без знака) и цвет
+  по теме MUI (`success.main` / `error.main` / `text.primary`). Жёстко цвета не
+  прописываются. Не использовать локальные копии хелпера в фичах.
 - **Формы**: React Hook Form + Zod (`zodResolver` из `@hookform/resolvers/zod`),
   zod-схема — в `features/<feature>/lib/`. Валидируется только ввод; бизнес-проверки
   (баланс, наличие позиции) — на backend, не дублируются.
@@ -237,12 +312,12 @@ export async function getAccount(): Promise<AccountResponse> {
 | `account` | ✓ `GET /account`, AccountSummary на Dashboard |
 | `stocks` | ✓ `GET /stocks`, каталог + цена + Buy/Sell |
 | `trading` | ✓ buy/sell через mutation + диалоги |
-| `portfolio` | заглушка (страница без данных) |
-| `transactions` | заглушка (страница без данных) |
+| `portfolio` | ✓ `GET /portfolio`, таблица позиций + Sell |
+| `transactions` | ✓ `GET /transactions`, таблица истории операций |
 | `guest` | (пусто) — создание гостя в `shared/api/apiClient.ts` → `createGuest()` |
 
-Страницы `Login`, `Register`, `Account`, `Portfolio`, `Transactions` — заглушки с
-заголовком. Рабочие страницы: `Dashboard`, `Stocks`.
+Страницы `Login`, `Register`, `Account` — заглушки с заголовком. Рабочие
+страницы: `Dashboard`, `Stocks`, `Portfolio`, `Transactions`.
 
 ## Запрещено использовать
 

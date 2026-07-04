@@ -9,7 +9,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { ReactNode } from 'react';
-import { formatMoney } from '@/shared/utils/format';
+import { formatMoney, formatProfitLoss } from '@/shared/utils/format';
 import { AccountResponse } from '../types/accountTypes';
 
 interface AccountSummaryProps {
@@ -41,17 +41,6 @@ function StatCard({ icon, label, value, color = 'text.primary' }: StatCardProps)
       </CardContent>
     </Card>
   );
-}
-
-/** Profit/Loss со знаком и цветом: + зелёный, − красный, 0 нейтрально. */
-function formatProfitLoss(value: number): { text: string; color: string } {
-  if (value > 0) {
-    return { text: `+ ${formatMoney(value)}`, color: 'success.main' };
-  }
-  if (value < 0) {
-    return { text: `− ${formatMoney(Math.abs(value))}`, color: 'error.main' };
-  }
-  return { text: formatMoney(value), color: 'text.primary' };
 }
 
 export default function AccountSummary({
