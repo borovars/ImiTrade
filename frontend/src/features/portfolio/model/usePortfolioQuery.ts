@@ -7,8 +7,5 @@ export function usePortfolioQuery() {
   return useQuery<PortfolioPosition[], Error>({
     queryKey: queryKeys.portfolio,
     queryFn: getPortfolio,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 1,
   });
 }

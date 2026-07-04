@@ -7,8 +7,5 @@ export function useAccountQuery() {
   return useQuery<AccountResponse, Error>({
     queryKey: queryKeys.account,
     queryFn: getAccount,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 1,
   });
 }

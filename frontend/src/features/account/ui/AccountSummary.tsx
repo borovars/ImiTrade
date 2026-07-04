@@ -1,15 +1,8 @@
-import { Card, CardContent, Grid, Skeleton, Box, Typography, Button } from '@mui/material';
-import {
-  Wallet,
-  Briefcase,
-  TrendingUp,
-  TrendingDown,
-  Layers,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
+import { Card, CardContent, Grid, Skeleton, Box, Typography } from '@mui/material';
+import { Wallet, Briefcase, TrendingUp, TrendingDown, Layers } from 'lucide-react';
 import { ReactNode } from 'react';
 import { formatMoney, formatProfitLoss } from '@/shared/utils/format';
+import { StateError, StateEmpty } from '@/shared/components';
 import { AccountResponse } from '../types/accountTypes';
 
 interface AccountSummaryProps {
@@ -64,29 +57,12 @@ export default function AccountSummary({
 
   if (isError) {
     return (
-      <Box sx={{ textAlign: 'center', py: 6 }}>
-        <AlertCircle size={48} color="#d32f2f" style={{ marginBottom: 16 }} />
-        <Typography variant="h6" color="error" gutterBottom>
-          Failed to load account data
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {error?.message || 'Something went wrong'}
-        </Typography>
-        <Button variant="outlined" startIcon={<RefreshCw size={16} />} onClick={() => refetch()}>
-          Retry
-        </Button>
-      </Box>
+      <StateError title="Failed to load account data" error={error} onRetry={refetch} />
     );
   }
 
   if (!data) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 6 }}>
-        <Typography variant="h6" color="text.secondary">
-          No account data available
-        </Typography>
-      </Box>
-    );
+    return <StateEmpty title="No account data available" />;
   }
 
   const profitLoss = formatProfitLoss(data.profitLoss);

@@ -8,6 +8,7 @@ import {
   TableRow,
   Paper,
   Button,
+  TablePagination,
 } from '@mui/material';
 import { Stock } from '../types/stockTypes';
 import { formatMoney } from '@/shared/utils/format';
@@ -16,11 +17,29 @@ import SellStockDialog from '@/features/trading/ui/SellStockDialog';
 
 type TradeMode = 'buy' | 'sell';
 
+const ROWS_PER_PAGE_OPTIONS = [10, 20, 50];
+
 interface StocksTableProps {
   stocks: Stock[];
+  /** 0-based индекс страницы (контракт Spring Page). */
+  page: number;
+  rowsPerPage: number;
+  totalElements: number;
+  /** Блокировка контролов на время подгрузки новой страницы (placeholder data). */
+  loading?: boolean;
+  onPageChange: (page: number) => void;
+  onRowsPerPageChange: (size: number) => void;
 }
 
-export default function StocksTable({ stocks }: StocksTableProps) {
+export default function StocksTable({
+  stocks,
+  page,
+  rowsPerPage,
+  totalElements,
+  loading = false,
+  onPageChange,
+  onRowsPerPageChange,
+}: StocksTableProps) {
   const [tradeStock, setTradeStock] = useState<Stock | null>(null);
   const [tradeMode, setTradeMode] = useState<TradeMode | null>(null);
 
@@ -71,6 +90,16 @@ export default function StocksTable({ stocks }: StocksTableProps) {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={totalElements}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          disabled={loading}
+          onPageChange={(_, newPage) => onPageChange(newPage)}
+          onRowsPerPageChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+        />
       </TableContainer>
 
       {tradeStock && tradeMode === 'buy' && (

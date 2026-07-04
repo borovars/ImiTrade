@@ -6,7 +6,8 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { ApiError } from '@/shared/api/apiClient';
 
 /**
- * Продажа акции. Логика аналогична покупке (см. useBuyStockMutation).
+ * Продажа акции. Логика аналогична покупке (см. useBuyStockMutation):
+ * инвалидируются account/portfolio/transactions, каталог stocks не трогается.
  */
 export function useSellStockMutation() {
   const queryClient = useQueryClient();
@@ -15,7 +16,6 @@ export function useSellStockMutation() {
     mutationFn: sellStock,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.account });
-      queryClient.invalidateQueries({ queryKey: queryKeys.stocks });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
       toast.success(`Sold ${data.quantity} ${data.stockTicker}`);

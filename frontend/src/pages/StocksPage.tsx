@@ -1,10 +1,25 @@
-import { Container, Typography, Box, Button, Skeleton } from '@mui/material';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Container, Typography, Box } from '@mui/material';
 import { useStocksQuery } from '@/features/stocks/model/useStocksQuery';
 import StocksTable from '@/features/stocks/ui/StocksTable';
+import { StateError, StateEmpty, TableSkeleton } from '@/shared/components';
+
+const DEFAULT_ROWS_PER_PAGE = 20;
 
 export default function StocksPage() {
-  const { data, isLoading, isError, error, refetch } = useStocksQuery();
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const { data, isLoading, isError, error, refetch, isPlaceholderData } = useStocksQuery(
+    page,
+    rowsPerPage
+  );
+
+  const handlePageChange = (newPage: number) => setPage(newPage);
+
+  const handleRowsPerPageChange = (newSize: number) => {
+    setRowsPerPage(newSize);
+    setPage(0);
+  };
 
   return (
     <Container maxWidth="lg">
@@ -14,43 +29,25 @@ export default function StocksPage() {
         </Typography>
       </Box>
 
-      {isLoading && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Skeleton variant="rectangular" height={56} />
-          <Skeleton variant="rectangular" height={48} />
-          <Skeleton variant="rectangular" height={48} />
-          <Skeleton variant="rectangular" height={48} />
-        </Box>
+      {isLoading && <TableSkeleton />}
+
+      {isError && <StateError title="Failed to load stocks" error={error} onRetry={refetch} />}
+
+      {data && data.content.length === 0 && !isLoading && !isError && (
+        <StateEmpty title="No stocks available" />
       )}
 
-      {isError && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <AlertCircle size={48} color="#d32f2f" style={{ marginBottom: 16 }} />
-          <Typography variant="h6" color="error" gutterBottom>
-            Failed to load stocks
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {error?.message || 'Something went wrong'}
-          </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshCw size={16} />}
-            onClick={() => refetch()}
-          >
-            Retry
-          </Button>
-        </Box>
+      {data && data.content.length > 0 && (
+        <StocksTable
+          stocks={data.content}
+          page={data.number}
+          rowsPerPage={data.size}
+          totalElements={data.totalElements}
+          loading={isPlaceholderData}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleRowsPerPageChange}
+        />
       )}
-
-      {data && data.length === 0 && !isLoading && !isError && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <Typography variant="h6" color="text.secondary">
-            No stocks available
-          </Typography>
-        </Box>
-      )}
-
-      {data && data.length > 0 && <StocksTable stocks={data} />}
     </Container>
   );
 }
