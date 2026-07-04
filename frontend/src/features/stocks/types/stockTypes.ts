@@ -1,6 +1,7 @@
 export interface Stock {
-  id: string;
+  id: number;
   ticker: string;
   companyName: string;
   exchange: string;
+  currentPrice: number;
 }

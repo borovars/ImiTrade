@@ -144,6 +144,52 @@ id-колонки (без JPA-ассоциаций), денежные значе
 
 4. **Открыть Swagger UI** по адресу ниже и выполнить запросы через UI.
 
+## Frontend
+
+SPA-клиент живёт в каталоге `frontend/` и общается с этим backend по
+`/api/v1/...`. Технологии: React 19 + TypeScript (strict), Vite 6, React Router 7,
+Axios, TanStack Query 5, Material UI 7, React Hook Form + Zod, Sonner, Lucide.
+
+### Запуск
+
+```bash
+cd frontend
+npm install
+npm run dev       # http://localhost:5173
+npm run build     # tsc + vite build
+npm run lint
+```
+
+Базовый URL backend берётся из `frontend/.env` (`VITE_API_URL`, по умолчанию
+`http://localhost:8080`). Запускайте backend (`./gradlew bootRun`) одновременно с dev-сервером.
+
+### Что реализовано
+
+- **Auth**: JWT + гостевой режим. При первом заходе автоматически создаётся гость
+  (`POST /api/v1/guest`), токен хранится в `localStorage`. JWT имеет приоритет над
+  guest-token. Переключение User/Guest показывается в топбаре.
+- **Dashboard**: сводка по аккаунту (`GET /api/v1/account`) — баланс, стоимость
+  портфеля, PnL, число позиций.
+- **Stocks**: каталог акций (`GET /api/v1/stocks`) с текущей ценой и кнопками
+  Buy/Sell в каждой строке.
+- **Trading**: покупка и продажа акций (`POST /api/v1/trades/buy|sell`) через
+  Material UI Dialog с валидацией количества (Zod). После сделки React Query
+  автоматически инвалидирует `account`/`stocks`/`portfolio`/`transactions`,
+  поэтому Dashboard и каталог обновляются без перезагрузки. Успех/ошибка — тосты
+  (Sonner); текст ошибки приходит из backend.
+
+`Portfolio`, `Transactions`, `Account`, `Login`, `Register` — пока заглушки
+(страницы с заголовком), их UI — следующий этап.
+
+### Архитектура
+
+Feature-based: `app/` (роутер + провайдеры), `pages/` (тонкие страницы),
+`widgets/` (layout/sidebar/topbar), `features/<feature>/{api,model,types,ui,lib}`,
+`shared/` (`api/`, `lib/`, `providers/`, `utils/`, `styles/`). Каждая фича —
+закрытый модуль; общение между фичами — только через `shared/`. Псевдоним `@/` → `src/`.
+
+Подробно правила и конвенции фронтенда — в `frontend/CLAUDE.md`.
+
 ## Configuration
 
 ### PostgreSQL (Docker Compose)
