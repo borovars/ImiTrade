@@ -3,6 +3,7 @@ package ImiTrade.auth.domain;
 import ImiTrade.auth.dto.AuthResponse;
 import ImiTrade.auth.dto.LoginRequest;
 import ImiTrade.auth.dto.RegisterRequest;
+import ImiTrade.common.exception.InvalidGuestTokenException;
 import ImiTrade.common.exception.InvalidCredentialsException;
 import ImiTrade.common.exception.UserNotFoundException;
 import ImiTrade.security.JwtService;
@@ -13,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.UUID;
 
 /**
  * Orchestration layer for authentication: registration + login.
@@ -31,13 +35,25 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * Registers a new user and immediately issues a JWT.
+     * Registers a new user or converts an existing guest if a guest token is provided.
      *
      * @return a {@link AuthResponse} containing the access token
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        User user = userService.register(request.email(), request.username(), request.password());
+        User user;
+        if (StringUtils.hasText(request.guestToken())) {
+            UUID token;
+            try {
+                token = UUID.fromString(request.guestToken());
+            } catch (IllegalArgumentException ex) {
+                throw new InvalidGuestTokenException(request.guestToken());
+            }
+            User guest = userService.getByGuestToken(token);
+            user = userService.convertGuestToRegistered(guest, request.email(), request.username(), request.password());
+        } else {
+            user = userService.register(request.email(), request.username(), request.password());
+        }
         return toAuthResponse(user);
     }
 

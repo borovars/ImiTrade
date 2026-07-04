@@ -75,7 +75,7 @@ class StockSecurityTest {
     }
 
     private String registerAndExtractToken() throws Exception {
-        RegisterRequest req = new RegisterRequest("stocks@example.com", "stocksuser", "S3cret!pass");
+        RegisterRequest req = new RegisterRequest("stocks@example.com", "stocksuser", "S3cret!pass", null);
         String body = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))

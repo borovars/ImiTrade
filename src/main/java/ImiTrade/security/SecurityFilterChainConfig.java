@@ -39,6 +39,7 @@ public class SecurityFilterChainConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
+            "/api/v1/guest",
             // Swagger / OpenAPI
             "/swagger-ui.html",
             "/swagger-ui/**",
@@ -46,6 +47,7 @@ public class SecurityFilterChainConfig {
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GuestAuthenticationFilter guestAuthenticationFilter;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
 
@@ -64,7 +66,9 @@ public class SecurityFilterChainConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 // Register our JWT filter before the form-login filter (which we don't use)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Guest auth filter runs after JWT so JWT takes precedence when both are present
+                .addFilterBefore(guestAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

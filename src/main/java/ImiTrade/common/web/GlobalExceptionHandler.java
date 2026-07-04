@@ -1,5 +1,7 @@
 package ImiTrade.common.web;
 
+import ImiTrade.common.exception.GuestAlreadyRegisteredException;
+import ImiTrade.common.exception.InvalidGuestTokenException;
 import ImiTrade.common.exception.EmailAlreadyExistsException;
 import ImiTrade.common.exception.InsufficientBalanceException;
 import ImiTrade.common.exception.InsufficientStockQuantityException;
@@ -64,6 +66,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleInvalidCredentials(InvalidCredentialsException ex,
                                                                 HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ErrorCodes.INVALID_CREDENTIALS,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InvalidGuestTokenException.class)
+    public ResponseEntity<ApiResponse> handleInvalidGuestToken(InvalidGuestTokenException ex,
+                                                               HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ErrorCodes.INVALID_GUEST_TOKEN,
+                ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(GuestAlreadyRegisteredException.class)
+    public ResponseEntity<ApiResponse> handleGuestAlreadyRegistered(GuestAlreadyRegisteredException ex,
+                                                                    HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ErrorCodes.GUEST_ALREADY_REGISTERED,
                 ex.getMessage(), request, null);
     }
 

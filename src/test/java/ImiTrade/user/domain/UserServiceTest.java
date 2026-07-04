@@ -140,4 +140,79 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.getById(99L))
                 .isInstanceOf(UserNotFoundException.class);
     }
+
+    @DisplayName("createGuest: sets balance 100000, isGuest true, generates token")
+    @Test
+    void createGuestSuccess() {
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+
+        User guest = userService.createGuest();
+
+        assertThat(guest.getId()).isEqualTo(1L);
+        assertThat(guest.getBalance()).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(guest.getIsGuest()).isTrue();
+        assertThat(guest.getGuestToken()).isNotNull();
+        assertThat(guest.getEmail()).isNull();
+        assertThat(guest.getUsername()).isNull();
+        assertThat(guest.getPasswordHash()).isNull();
+    }
+
+    @DisplayName("getByGuestToken: returns user when found")
+    @Test
+    void getByGuestTokenFound() {
+        java.util.UUID token = java.util.UUID.randomUUID();
+        User guest = User.builder().id(1L).guestToken(token).isGuest(true).build();
+        when(userRepository.findByGuestToken(token)).thenReturn(Optional.of(guest));
+
+        assertThat(userService.getByGuestToken(token)).isSameAs(guest);
+    }
+
+    @DisplayName("getByGuestToken: throws UserNotFoundException when missing")
+    @Test
+    void getByGuestTokenMissing() {
+        java.util.UUID token = java.util.UUID.randomUUID();
+        when(userRepository.findByGuestToken(token)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getByGuestToken(token))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @DisplayName("convertGuestToRegistered: updates fields, adds bonus, clears token")
+    @Test
+    void convertGuestToRegisteredSuccess() {
+        java.util.UUID token = java.util.UUID.randomUUID();
+        User guest = User.builder()
+                .id(1L)
+                .balance(new BigDecimal("100000.0000"))
+                .isGuest(true)
+                .guestToken(token)
+                .build();
+        String hash = "$2a$10$hash";
+
+        when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(userRepository.existsByUsername("alice")).thenReturn(false);
+        when(passwordEncoder.encode("S3cret!pass")).thenReturn(hash);
+
+        User registered = userService.convertGuestToRegistered(guest, "alice@example.com", "alice", "S3cret!pass");
+
+        assertThat(registered.getEmail()).isEqualTo("alice@example.com");
+        assertThat(registered.getUsername()).isEqualTo("alice");
+        assertThat(registered.getPasswordHash()).isEqualTo(hash);
+        assertThat(registered.getIsGuest()).isFalse();
+        assertThat(registered.getGuestToken()).isNull();
+        assertThat(registered.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000"));
+    }
+
+    @DisplayName("convertGuestToRegistered: throws GuestAlreadyRegisteredException if already registered")
+    @Test
+    void convertGuestAlreadyRegistered() {
+        User user = User.builder().id(1L).isGuest(false).guestToken(null).build();
+
+        assertThatThrownBy(() -> userService.convertGuestToRegistered(user, "a@b.com", "alice", "pass"))
+                .isInstanceOf(ImiTrade.common.exception.GuestAlreadyRegisteredException.class);
+    }
 }

@@ -41,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.security.jwt.secret-key=dGVzdC1zZWNyZXQta2V5LWZvci1iYWNrZW5kLXVuaXQtdGVzdHMtb25seS1uby1wcm9kdWN0aW9uLXVzZS1zdHJvbmctbGVuZ3RoLWtleQ==",
         "app.security.jwt.access-token-ttl=3600000",
-        "app.security.jwt.issuer=imitrade"
+        "app.security.jwt.issuer=imitrade",
+        "app.market.scheduler.enabled=false"
 })
 class TradeIntegrationTest extends PostgresTestBase {
 
@@ -59,7 +60,7 @@ class TradeIntegrationTest extends PostgresTestBase {
     @Test
     @DisplayName("POST /api/v1/trades/buy — 200, creates transaction, debits balance, creates position")
     void buyTrade() throws Exception {
-        RegisterRequest register = new RegisterRequest("trader@example.com", "trader", "S3cret!pass");
+        RegisterRequest register = new RegisterRequest("trader@example.com", "trader", "S3cret!pass", null);
         String token = registerAndExtractToken(register);
         Long userId = userRepository.findByEmail("trader@example.com").orElseThrow().getId();
         BigDecimal balanceBefore = userRepository.findById(userId).orElseThrow().getBalance();
@@ -103,7 +104,7 @@ class TradeIntegrationTest extends PostgresTestBase {
     @Test
     @DisplayName("POST /api/v1/trades/sell — 200, creates transaction, credits balance, decreases quantity")
     void sellTrade() throws Exception {
-        RegisterRequest register = new RegisterRequest("seller@example.com", "seller", "S3cret!pass");
+        RegisterRequest register = new RegisterRequest("seller@example.com", "seller", "S3cret!pass", null);
         String token = registerAndExtractToken(register);
         Long userId = userRepository.findByEmail("seller@example.com").orElseThrow().getId();
 
@@ -148,7 +149,7 @@ class TradeIntegrationTest extends PostgresTestBase {
     @DisplayName("POST /api/v1/trades/buy with unknown stock returns 404")
     void buyUnknownStock() throws Exception {
         String token = registerAndExtractToken(
-                new RegisterRequest("noStock@example.com", "nostock", "S3cret!pass"));
+                new RegisterRequest("noStock@example.com", "nostock", "S3cret!pass", null));
 
         mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
