@@ -1,24 +1,24 @@
 export const API_ENDPOINTS = {
-  GUEST: '/guest',
+  GUEST: '/api/v1/guest',
   AUTH: {
-    LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
-    REFRESH: '/auth/refresh',
+    LOGIN: '/api/v1/auth/login',
+    REGISTER: '/api/v1/auth/register',
+    REFRESH: '/api/v1/auth/refresh',
   },
   ACCOUNT: {
-    BASE: '/account',
+    BASE: '/api/v1/account',
   },
   STOCKS: {
-    BASE: '/stocks',
+    BASE: '/api/v1/stocks',
   },
   PORTFOLIO: {
-    BASE: '/portfolio',
+    BASE: '/api/v1/portfolio',
   },
   TRANSACTIONS: {
-    BASE: '/transactions',
+    BASE: '/api/v1/transactions',
   },
   TRADING: {
-    BUY: '/trading/buy',
-    SELL: '/trading/sell',
+    BUY: '/api/v1/trades/buy',
+    SELL: '/api/v1/trades/sell',
   },
 } as const;

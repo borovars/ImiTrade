@@ -35,10 +35,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const normalizedError = normalizeApiError(error);
+    const requestUrl = error.config?.url ?? '';
 
     if (normalizedError.status === 401) {
+      // Жёсткая перезагрузка на 401 вызывает бесконечный цикл, если запрос
+      // сам по себе создаёт гостя (без него никакой авторизации нет).
+      // Поэтому перезагружаем только когда ранее был сохранённый токен —
+      // то есть 401 реально означает «токен протух».
+      const hadToken = Boolean(storage.getJwtToken() || storage.getGuestToken());
       storage.clearAuth();
-      window.location.href = '/';
+      if (hadToken && !requestUrl.includes(API_ENDPOINTS.GUEST)) {
+        window.location.href = '/';
+      }
     } else if (normalizedError.status === 403) {
       toast.error(normalizedError.message || 'Доступ запрещён');
     } else if (normalizedError.status >= 500) {
