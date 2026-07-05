@@ -10,6 +10,9 @@
 export const queryKeys = {
   account: ['account'] as const,
   stocks: ['stocks'] as const,
+  /** Ключ конкретной акции по тикеру. Вкладывается в namespace `stocks`,
+   *  поэтому инвалидация `queryKeys.stocks` (prefix) захватит и detail-запрос. */
+  stockDetails: (ticker: string) => ['stocks', 'detail', ticker] as const,
   portfolio: ['portfolio'] as const,
   transactions: ['transactions'] as const,
 };

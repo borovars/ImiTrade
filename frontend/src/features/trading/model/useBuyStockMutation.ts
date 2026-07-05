@@ -8,10 +8,12 @@ import { ApiError } from '@/shared/api/apiClient';
 /**
  * Покупка акции.
  *
- * После успеха автоматически инвалидирует account, portfolio и transactions —
- * без ручного обновления состояния. Каталог акций (stocks) не инвалидируется:
- * это рыночные данные, которые не меняются от сделок пользователя (цены
- * обновляются планировщиком backend). Toast успеха показывается здесь (уровень
+ * После успеха автоматически инвалидирует account, portfolio, transactions и
+ * stocks — без ручного обновления состояния. Каталог акций (stocks)
+ * инвалидируется prefix-ключом: это захватывает и список акций, и detail-запрос
+ * по тикеру (`['stocks','detail',ticker]`), чтобы страница Stock Detail
+ * обновлялась после сделки (хотя сама рыночная цена от сделки не меняется —
+ * её обновляет планировщик backend). Toast успеха показывается здесь (уровень
  * хука), ошибки backend — в onError (apiClient уже показывает 403/5xx, здесь
  * добавляем текст для 4xx торговых ошибок).
  */
@@ -22,6 +24,7 @@ export function useBuyStockMutation() {
     mutationFn: buyStock,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.account });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
       toast.success(`Bought ${data.quantity} ${data.stockTicker}`);

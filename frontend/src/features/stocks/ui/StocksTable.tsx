@@ -10,6 +10,7 @@ import {
   Button,
   TablePagination,
 } from '@mui/material';
+import { Link } from 'react-router-dom';
 import { Stock } from '../types/stockTypes';
 import { formatMoney } from '@/shared/utils/format';
 import BuyStockDialog from '@/features/trading/ui/BuyStockDialog';
@@ -69,7 +70,14 @@ export default function StocksTable({
           <TableBody>
             {stocks.map((stock) => (
               <TableRow key={stock.id} hover>
-                <TableCell sx={{ fontWeight: 600 }}>{stock.ticker}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>
+                  <Link
+                    to={`/stocks/${stock.ticker}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    {stock.ticker}
+                  </Link>
+                </TableCell>
                 <TableCell>{stock.companyName}</TableCell>
                 <TableCell>{stock.exchange}</TableCell>
                 <TableCell align="right">{formatMoney(stock.currentPrice)}</TableCell>

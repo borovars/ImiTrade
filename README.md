@@ -200,7 +200,22 @@ npm run lint
 - **Dashboard**: сводка по аккаунту (`GET /api/v1/account`) — баланс, стоимость
   портфеля, PnL, число позиций.
 - **Stocks**: каталог акций (`GET /api/v1/stocks`) с текущей ценой и кнопками
-  Buy/Sell в каждой строке.
+  Buy/Sell в каждой строке. Тикер в строке — ссылка на страницу детали акции.
+- **Stock Detail**: детальная информация об акции на маршруте `/stocks/:ticker`
+  (например, `/stocks/SBER`). Блоки: Header (компания, тикер, биржа), Price
+  Block (текущая цена крупным шрифтом), User Position (позиция пользователя с
+  количеством, средней ценой, текущей стоимостью и PnL, либо «You do not own
+  this stock.»), Trading (кнопки Buy/Sell, переиспользующие `BuyStockDialog` /
+  `SellStockDialog` из Trading), Company Information. Данные акции берутся
+  фильтром `GET /api/v1/stocks?ticker=<ticker>` (case-insensitive exact match,
+  без нового backend-эндпоинта); позиция — через Portfolio API. После сделки
+  trading-мутации инвалидируют `account`/`stocks`/`portfolio`/`transactions`, поэтому
+  Dashboard, Portfolio, Transactions и Stock Detail обновляются автоматически
+  (каталог `stocks` теперь инвалидируется prefix-ключом, что захватывает и
+  detail-запрос по тикеру). Loading — Skeleton, при ненайденной акции —
+  Error State «Stock not found.» с кнопкой возврата в каталог. Кнопка Back to
+  Stocks возвращает в каталог. Подготавливает почву для интеграции графика цены
+  (MOEX candles) и истории котировок на следующих этапах.
 - **Trading**: покупка и продажа акций (`POST /api/v1/trades/buy|sell`) через
   Material UI Dialog с валидацией количества (Zod). После сделки React Query
   автоматически инвалидирует `account`/`stocks`/`portfolio`/`transactions`,
@@ -239,9 +254,12 @@ npm run lint
   Transactions и Account; inline-дубли этих блоков убрано.
 - **React Query**: опции (`staleTime`/`refetchOnWindowFocus`/`retry`) заданы
   один раз как дефолты `QueryClient` и не дублируются в хуках. После сделок
-  buy/sell инвалидируются `account`/`portfolio`/`transactions` — Dashboard,
-  портфель и история обновляются автоматически; каталог `stocks` не
-  инвалидируется (рыночные данные, не зависят от сделок пользователя).
+  buy/sell инвалидируются `account`/`stocks`/`portfolio`/`transactions` —
+  Dashboard, каталог, портфель, история и страница Stock Detail обновляются
+  автоматически. Каталог `stocks` инвалидируется prefix-ключом, который
+  захватывает и detail-запрос по тикеру (`['stocks','detail',ticker]`); сами
+  рыночные цены от сделки не меняются (их обновляет планировщик backend), но
+  инвалидация нужна для автообновления страницы Stock Detail после сделки.
 
 `Account` — пока заглушка (страница с заголовком), её UI — следующий этап.
 `Login` и `Register` реализованы полностью (формы с валидацией, мутациями и
