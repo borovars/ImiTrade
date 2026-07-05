@@ -5,6 +5,9 @@ export const API_ENDPOINTS = {
     REGISTER: '/api/v1/auth/register',
     REFRESH: '/api/v1/auth/refresh',
   },
+  USERS: {
+    ME: '/api/v1/users/me',
+  },
   ACCOUNT: {
     BASE: '/api/v1/account',
   },

@@ -42,9 +42,16 @@ apiClient.interceptors.response.use(
       // сам по себе создаёт гостя (без него никакой авторизации нет).
       // Поэтому перезагружаем только когда ранее был сохранённый токен —
       // то есть 401 реально означает «токен протух».
+      //
+      // Эндпоинты входа/регистрации тоже исключаем: 401 на /auth/login (неверный
+      // пароль) и 409-на- /auth/register не должны чистить гостевую сессию и
+      // перезагружать страницу — ошибку покажет форма через ApiError.
+      const isAuthEndpoint =
+        requestUrl.includes(API_ENDPOINTS.AUTH.LOGIN) ||
+        requestUrl.includes(API_ENDPOINTS.AUTH.REGISTER);
       const hadToken = Boolean(storage.getJwtToken() || storage.getGuestToken());
       storage.clearAuth();
-      if (hadToken && !requestUrl.includes(API_ENDPOINTS.GUEST)) {
+      if (hadToken && !requestUrl.includes(API_ENDPOINTS.GUEST) && !isAuthEndpoint) {
         window.location.href = '/';
       }
     } else if (normalizedError.status === 403) {
