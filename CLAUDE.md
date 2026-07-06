@@ -7,7 +7,7 @@ The system maintains portfolios and transaction history.
 
 Current state:
 - Authentication (register/login) ✓
-- Stock catalog (read-only) ✓
+- Stock catalog (read-only) ✓ — ~50 MOEX-compatible instruments (blue chips, second-tier, ETFs)
 - Trading (buy/sell) ✓
 - Portfolio (read view with live PnL) ✓
 - Account summary (balance + live portfolio aggregates) ✓
@@ -130,11 +130,11 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 | Table               | Purpose                        |
 |---------------------|--------------------------------|
 | `users`              | User accounts, balance, auth, **is_guest**, **guest_token** |
-| `stocks`             | Read-only stock catalog (current_price added by V3)            |
+| `stocks`             | Read-only stock catalog (current_price added by V3, extended to ~50 MOEX tickers by V5) |
 | `portfolio_positions`| User stock holdings                                              |
 | `transactions`      | Buy/sell history                                                 |
 
-**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**.
+**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**, **V5 extended the stocks catalog to ~50 MOEX-compatible instruments (blue chips + second-tier issuers + ETFs); schema unchanged — seed data only**.
 
 **Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
 
