@@ -13,6 +13,7 @@ Current state:
 - Account summary (balance + live portfolio aggregates) ✓
 - Transaction history (read-only, filterable) ✓
 - Live price updates from MOEX ISS API (scheduled) ✓
+- **Lot-based trading** (lot size per stock, synced from MOEX; trades are placed in lots, shares remain the source of truth) ✓
 - **Guest Mode** (create guest, X-Guest-Token auth, convert to registered user with bonus) ✓
 
 Main business entities:
@@ -130,11 +131,11 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 | Table               | Purpose                        |
 |---------------------|--------------------------------|
 | `users`              | User accounts, balance, auth, **is_guest**, **guest_token** |
-| `stocks`             | Read-only stock catalog (current_price added by V3, extended to ~50 MOEX tickers by V5) |
+| `stocks`             | Read-only stock catalog (current_price added by V3, extended to ~50 MOEX tickers by V5, lot_size added by V6) |
 | `portfolio_positions`| User stock holdings                                              |
 | `transactions`      | Buy/sell history                                                 |
 
-**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**, **V5 extended the stocks catalog to ~50 MOEX-compatible instruments (blue chips + second-tier issuers + ETFs); schema unchanged — seed data only**.
+**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**, **V5 extended the stocks catalog to ~50 MOEX-compatible instruments (blue chips + second-tier issuers + ETFs); schema unchanged — seed data only**, **V6 added `stocks.lot_size INTEGER NOT NULL` and backfilled real MOEX `LOTSIZE` values for the ~50 catalog tickers**.
 
 **Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
 
@@ -281,8 +282,9 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 - **Guest conversion**: sets `is_guest = false`, `guest_token = null`, fills `email/username/password_hash`, adds bonus to existing balance. Portfolio and transactions are preserved under the same `user_id`.
 - Login never reveals whether an email is registered (same 401 for "wrong password" and "no such user")
 - Stocks are read-only: seeded by Flyway, not modifiable through the API
-- **Buy**: validates quantity > 0, checks balance ≥ price × qty, saves BUY transaction, upserts position with weighted-average price: `(oldQty×oldAvg + buyQty×price) / (oldQty+buyQty)` (scale 4, HALF_UP), debits balance
-- **Sell**: validates quantity > 0, checks position exists + sufficient shares, saves SELL transaction, removes position at quantity 0 (otherwise decrements), credits balance
+- **Lots**: every stock has a `lot_size` (shares per lot, synced from MOEX `securities.LOTSIZE` by the scheduler). Trading is done in **lots**: the client sends `{ stockId, lots }`, the backend computes `quantity = lots × lotSize` and stores the share `quantity` on the transaction/position (lots are never persisted — shares are the single source of truth). `quantity % lotSize == 0` is guaranteed by construction; `lots > 0` and a positive `lotSize` are validated, reusing `INVALID_QUANTITY` for violations
+- **Buy**: validates lots > 0 + lotSize > 0, computes quantity = lots × lotSize, checks balance ≥ price × qty, saves BUY transaction, upserts position with weighted-average price: `(oldQty×oldAvg + buyQty×price) / (oldQty+buyQty)` (scale 4, HALF_UP), debits balance
+- **Sell**: validates lots > 0 + lotSize > 0, computes quantity = lots × lotSize, loads the stock first (so lotSize is known before the position check), checks position exists + sufficient shares, saves SELL transaction, removes position at quantity 0 (otherwise decrements), credits balance
 - Virtual-money settlement: `balance -= total` on buy, `balance += total` on sell
 - **PnL** = `(currentPrice − averagePrice) × quantity` (scale 4, HALF_UP), computed in-memory per request, never persisted
 - **Account aggregates** (computed in-memory in `AccountService`, never persisted):
@@ -290,7 +292,7 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
     - `profitLoss     = Σ((currentPrice − averagePrice) × quantity)` (scale 4, HALF_UP)
     - `totalAssets    = balance + portfolioValue` (scale 4, HALF_UP)
     - `positionsCount = number of current portfolio_positions`
-- **MOEX price flow**: `MoexClient` fetches the `LAST` price for a ticker; `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice`; trade/account/portfolio logic reads `current_price` from the DB, so it always uses the last value the scheduler persisted
+- **MOEX price flow**: `MoexClient.getMarketSnapshot` fetches the `LAST` price and `LOTSIZE` for a ticker in a single MOEX ISS call (`iss.only=marketdata,securities` — `LOTSIZE` lives in the `securities` block, not `marketdata`); `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice` and, when MOEX returns a lot size, `stocks.lot_size` via `StockRepository.updateLotSize` (a missing lot size keeps the persisted value — the contract forbids making one up); trade/account/portfolio logic reads `current_price`/`lot_size` from the DB, so it always uses the last value the scheduler persisted
 - Transactions are the source of truth for trade history
 
 ## DO / DON'T

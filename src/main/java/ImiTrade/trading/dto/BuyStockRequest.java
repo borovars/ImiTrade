@@ -14,9 +14,9 @@ public record BuyStockRequest(
         @NotNull
         Long stockId,
 
-        @Schema(description = "Number of shares to buy (must be > 0)", example = "10")
+        @Schema(description = "Number of lots to buy (must be > 0). Each lot equals the stock's lot size in shares.", example = "3")
         @NotNull
         @Positive
-        Integer quantity
+        Integer lots
 ) {
 }

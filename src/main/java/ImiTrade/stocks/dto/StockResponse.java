@@ -14,7 +14,8 @@ public record StockResponse(
         String ticker,
         String companyName,
         String exchange,
-        BigDecimal currentPrice
+        BigDecimal currentPrice,
+        Integer lotSize
 ) {
     public static StockResponse from(Stock stock) {
         return new StockResponse(
@@ -22,7 +23,8 @@ public record StockResponse(
                 stock.getTicker(),
                 stock.getCompanyName(),
                 stock.getExchange(),
-                stock.getCurrentPrice()
+                stock.getCurrentPrice(),
+                stock.getLotSize()
         );
     }
 }

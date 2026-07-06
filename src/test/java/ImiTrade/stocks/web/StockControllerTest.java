@@ -53,8 +53,10 @@ class StockControllerTest {
     @DisplayName("GET /api/v1/stocks — 200 with serialized stock page")
     @Test
     void getStocksReturnsPage() throws Exception {
-        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
-        Stock gazp = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром").exchange("MOEX").build();
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1).build();
+        Stock gazp = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром").exchange("MOEX")
+                .currentPrice(new java.math.BigDecimal("170.2000")).lotSize(10).build();
         given(stockService.getStocks(eq(null), eq(null), any()))
                 .willReturn(new PageImpl<>(List.of(sber, gazp), PageRequest.of(0, 20), 2));
 
@@ -66,13 +68,16 @@ class StockControllerTest {
                 .andExpect(jsonPath("$.content[0].ticker").value("SBER"))
                 .andExpect(jsonPath("$.content[0].companyName").value("Сбербанк"))
                 .andExpect(jsonPath("$.content[0].exchange").value("MOEX"))
+                .andExpect(jsonPath("$.content[0].lotSize").value(1))
+                .andExpect(jsonPath("$.content[1].lotSize").value(10))
                 .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @DisplayName("GET /api/v1/stocks/{id} — 200 with serialized stock for an existing id")
     @Test
     void getStockByIdFound() throws Exception {
-        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX").build();
+        Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
+                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1).build();
         given(stockService.getStockById(1L)).willReturn(sber);
 
         mockMvc.perform(get("/api/v1/stocks/1").accept(MediaType.APPLICATION_JSON))
@@ -80,7 +85,8 @@ class StockControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.ticker").value("SBER"))
                 .andExpect(jsonPath("$.companyName").value("Сбербанк"))
-                .andExpect(jsonPath("$.exchange").value("MOEX"));
+                .andExpect(jsonPath("$.exchange").value("MOEX"))
+                .andExpect(jsonPath("$.lotSize").value(1));
     }
 
     @DisplayName("GET /api/v1/stocks/{id} — 404 with STOCK_NOT_FOUND code for a missing stock")

@@ -33,10 +33,10 @@ class StockRepositoryTest {
     @BeforeEach
     void setUp() {
         stockRepository.saveAll(List.of(
-                Stock.builder().ticker("SBER").companyName("Сбербанк").exchange("MOEX").currentPrice(new BigDecimal("310.5000")).build(),
-                Stock.builder().ticker("GAZP").companyName("Газпром").exchange("MOEX").currentPrice(new BigDecimal("170.2000")).build(),
-                Stock.builder().ticker("LKOH").companyName("ЛУКОЙЛ").exchange("MOEX").currentPrice(new BigDecimal("6800.0000")).build(),
-                Stock.builder().ticker("ROSN").companyName("Роснефть").exchange("MOEX").currentPrice(new BigDecimal("620.0000")).build()
+                Stock.builder().ticker("SBER").companyName("Сбербанк").exchange("MOEX").currentPrice(new BigDecimal("310.5000")).lotSize(1).build(),
+                Stock.builder().ticker("GAZP").companyName("Газпром").exchange("MOEX").currentPrice(new BigDecimal("170.2000")).lotSize(10).build(),
+                Stock.builder().ticker("LKOH").companyName("ЛУКОЙЛ").exchange("MOEX").currentPrice(new BigDecimal("6800.0000")).lotSize(1).build(),
+                Stock.builder().ticker("ROSN").companyName("Роснефть").exchange("MOEX").currentPrice(new BigDecimal("620.0000")).lotSize(1).build()
         ));
     }
 

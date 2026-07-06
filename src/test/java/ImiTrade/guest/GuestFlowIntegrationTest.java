@@ -144,6 +144,6 @@ class GuestFlowIntegrationTest extends PostgresTestBase {
         assertThat(positions.get(0).getQuantity()).isEqualTo(10);
     }
 
-    private record BuyReq(Long stockId, Integer quantity) {
+    private record BuyReq(Long stockId, Integer lots) {
     }
 }

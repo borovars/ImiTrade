@@ -44,7 +44,7 @@ class StockSecurityTest {
     void setUp() {
         stockRepository.save(Stock.builder()
                 .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
-                .currentPrice(new BigDecimal("310.5000")).build());
+                .currentPrice(new BigDecimal("310.5000")).lotSize(1).build());
     }
 
     @Test

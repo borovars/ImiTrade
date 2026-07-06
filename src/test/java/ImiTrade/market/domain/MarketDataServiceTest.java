@@ -56,4 +56,17 @@ class MarketDataServiceTest {
         assertThatThrownBy(() -> marketDataService.getCurrentPrice("SBER"))
                 .isInstanceOf(MarketDataUnavailableException.class);
     }
+
+    @DisplayName("getMarketSnapshot: delegates to MoexClient and returns its snapshot")
+    @Test
+    void getMarketSnapshotDelegatesToClient() {
+        MoexClient.MoexSnapshot snapshot = new MoexClient.MoexSnapshot(new BigDecimal("312.45"), 10);
+        when(moexClient.getMarketSnapshot("SBER")).thenReturn(snapshot);
+
+        MoexClient.MoexSnapshot result = marketDataService.getMarketSnapshot("SBER");
+
+        assertThat(result.last()).isEqualByComparingTo("312.45");
+        assertThat(result.lotSize()).isEqualTo(10);
+        verify(moexClient).getMarketSnapshot("SBER");
+    }
 }

@@ -38,12 +38,12 @@ public class TradeController {
     private final TradeService tradeService;
 
     @Operation(summary = "Buy stocks",
-            description = "Buys shares at the stock's current price. Deducts the total from the user balance and updates the portfolio.")
+            description = "Buys the given number of lots at the stock's current price. The share quantity is computed on the backend as lots × lotSize. Deducts the total from the user balance and updates the portfolio.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
                     description = "Trade executed",
                     content = @Content(schema = @Schema(implementation = TradeResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid quantity / insufficient balance",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid lots value / insufficient balance",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthenticated",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)),
@@ -54,17 +54,17 @@ public class TradeController {
     @PostMapping("/buy")
     public ResponseEntity<TradeResponse> buy(@AuthenticationPrincipal AuthenticatedUser principal,
                                              @Valid @RequestBody BuyStockRequest request) {
-        log.debug("POST /trades/buy user={} stockId={} qty={}", principal.userId(), request.stockId(), request.quantity());
+        log.debug("POST /trades/buy user={} stockId={} lots={}", principal.userId(), request.stockId(), request.lots());
         return ResponseEntity.ok(tradeService.buy(principal.userId(), request));
     }
 
     @Operation(summary = "Sell stocks",
-            description = "Sells shares from the user's portfolio at the stock's current price. Credits the total to the user balance and updates the portfolio.")
+            description = "Sells the given number of lots from the user's portfolio at the stock's current price. The share quantity is computed on the backend as lots × lotSize. Credits the total to the user balance and updates the portfolio.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
                     description = "Trade executed",
                     content = @Content(schema = @Schema(implementation = TradeResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid quantity / insufficient stock quantity",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid lots value / insufficient stock quantity",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthenticated",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class)),
@@ -75,7 +75,7 @@ public class TradeController {
     @PostMapping("/sell")
     public ResponseEntity<TradeResponse> sell(@AuthenticationPrincipal AuthenticatedUser principal,
                                               @Valid @RequestBody SellStockRequest request) {
-        log.debug("POST /trades/sell user={} stockId={} qty={}", principal.userId(), request.stockId(), request.quantity());
+        log.debug("POST /trades/sell user={} stockId={} lots={}", principal.userId(), request.stockId(), request.lots());
         return ResponseEntity.ok(tradeService.sell(principal.userId(), request));
     }
 }

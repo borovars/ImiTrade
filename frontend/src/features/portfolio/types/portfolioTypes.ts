@@ -16,4 +16,6 @@ export interface PortfolioPosition {
   averagePrice: number;
   currentPrice: number;
   pnl: number;
+  /** Shares per lot — отображение «N lots» = quantity / lotSize. */
+  lotSize: number;
 }

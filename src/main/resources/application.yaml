@@ -42,6 +42,8 @@ app:
       market: shares
       # marketdata field that holds the current price (LAST = last traded price)
       price-field: LAST
+      # securities field that holds the lot size (number of shares per lot)
+      lot-size-field: LOTSIZE
 
     scheduler:
       # Price-refresh scheduler. When false the job does not register at all.

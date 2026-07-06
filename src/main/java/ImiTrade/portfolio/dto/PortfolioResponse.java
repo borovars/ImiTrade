@@ -21,7 +21,8 @@ public record PortfolioResponse(
         Integer quantity,
         BigDecimal averagePrice,
         BigDecimal currentPrice,
-        BigDecimal pnl
+        BigDecimal pnl,
+        Integer lotSize
 ) {
     /**
      * Assembles the response from the persisted position, the current stock
@@ -35,7 +36,8 @@ public record PortfolioResponse(
                 position.getQuantity(),
                 position.getAveragePrice(),
                 stock.getCurrentPrice(),
-                pnl
+                pnl,
+                stock.getLotSize()
         );
     }
 }

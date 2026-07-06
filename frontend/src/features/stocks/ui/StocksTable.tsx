@@ -64,6 +64,7 @@ export default function StocksTable({
               <TableCell>Company Name</TableCell>
               <TableCell>Exchange</TableCell>
               <TableCell align="right">Price</TableCell>
+              <TableCell align="right">Lot Size</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -81,6 +82,7 @@ export default function StocksTable({
                 <TableCell>{stock.companyName}</TableCell>
                 <TableCell>{stock.exchange}</TableCell>
                 <TableCell align="right">{formatMoney(stock.currentPrice)}</TableCell>
+                <TableCell align="right">{stock.lotSize}</TableCell>
                 <TableCell align="right">
                   <Button
                     size="small"

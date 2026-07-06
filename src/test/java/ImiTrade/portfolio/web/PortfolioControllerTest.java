@@ -75,7 +75,7 @@ class PortfolioControllerTest {
     void getPortfolioReturnsList() throws Exception {
         PortfolioResponse line = new PortfolioResponse(
                 1L, "SBER", "Сбербанк", 10,
-                new BigDecimal("210.5000"), new BigDecimal("215.1000"), new BigDecimal("46.0000"));
+                new BigDecimal("210.5000"), new BigDecimal("215.1000"), new BigDecimal("46.0000"), 1);
         given(portfolioService.getPortfolio(USER_ID)).willReturn(List.of(line));
 
         mockMvc.perform(get("/api/v1/portfolio")
@@ -88,7 +88,8 @@ class PortfolioControllerTest {
                 .andExpect(jsonPath("$[0].quantity").value(10))
                 .andExpect(jsonPath("$[0].averagePrice").value(210.50))
                 .andExpect(jsonPath("$[0].currentPrice").value(215.10))
-                .andExpect(jsonPath("$[0].pnl").value(46.00));
+                .andExpect(jsonPath("$[0].pnl").value(46.00))
+                .andExpect(jsonPath("$[0].lotSize").value(1));
     }
 
     @DisplayName("GET /api/v1/portfolio — 200 with an empty array when there are no holdings")

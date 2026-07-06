@@ -4,6 +4,8 @@ export interface Stock {
   companyName: string;
   exchange: string;
   currentPrice: number;
+  /** Shares per lot — lotSize × lots = share quantity. Source of truth for trading. */
+  lotSize: number;
 }
 
 /**

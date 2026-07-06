@@ -48,6 +48,7 @@ class PortfolioServiceTest {
         Stock stock = Stock.builder()
                 .id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
                 .currentPrice(new BigDecimal("215.1000"))
+                .lotSize(1)
                 .build();
         when(portfolioPositionRepository.findByUserId(7L)).thenReturn(List.of(position));
         when(stockRepository.findAllById(any())).thenReturn(List.of(stock));
@@ -63,6 +64,7 @@ class PortfolioServiceTest {
         assertThat(line.averagePrice()).isEqualByComparingTo("210.5000");
         assertThat(line.currentPrice()).isEqualByComparingTo("215.1000");
         assertThat(line.pnl()).isEqualByComparingTo("46.0000");
+        assertThat(line.lotSize()).isEqualTo(1);
 
         verify(portfolioPositionRepository).findByUserId(7L);
         verify(stockRepository).findAllById(any());

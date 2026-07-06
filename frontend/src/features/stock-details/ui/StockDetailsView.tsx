@@ -75,6 +75,7 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
             ) : position ? (
               <PositionDetails
                 quantity={position.quantity}
+                lotSize={position.lotSize}
                 averagePrice={position.averagePrice}
                 currentPrice={position.currentPrice}
                 pnl={position.pnl}
@@ -118,6 +119,7 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
           <InfoRow label="Ticker" value={stock.ticker} />
           <InfoRow label="Company Name" value={stock.companyName} />
           <InfoRow label="Exchange" value={stock.exchange} />
+          <InfoRow label="Lot Size" value={`${stock.lotSize} shares`} />
         </Grid>
       </Paper>
 
@@ -133,21 +135,24 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
  */
 function PositionDetails({
   quantity,
+  lotSize,
   averagePrice,
   currentPrice,
   pnl,
 }: {
   quantity: number;
+  lotSize: number;
   averagePrice: number;
   currentPrice: number;
   pnl: number;
 }) {
   const positionValue = quantity * currentPrice;
   const profitLoss = formatProfitLoss(pnl);
+  const lotsLabel = lotSize > 0 && quantity % lotSize === 0 ? ` (${quantity / lotSize} lots)` : '';
 
   return (
     <Grid container spacing={2}>
-      <InfoRow label="Quantity" value={String(quantity)} />
+      <InfoRow label="Quantity" value={`${quantity}${lotsLabel}`} />
       <InfoRow label="Average Price" value={formatMoney(averagePrice)} />
       <InfoRow label="Position Value" value={formatMoney(positionValue)} />
       <Grid size={{ xs: 12 }}>
