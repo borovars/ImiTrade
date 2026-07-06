@@ -30,6 +30,12 @@ import java.util.Objects;
  * {@code securities} column set {@code SECID,BOARDID,LOTSIZE}. Price and lot size are
  * fetched in a single HTTP call. MOEX's {@code marketdata} block does not expose
  * {@code LOTSIZE}; that field lives in the {@code securities} block.
+ *
+ * <p>MOEX returns one row per {@code (SECID, BOARDID)} pair, and values differ across
+ * boards (e.g. for GAZP the {@code SMAL} lot is 1 while the {@code TQBR} lot is 10).
+ * Both the price and the lot size are therefore filtered strictly by the configured
+ * board ({@link MarketProperties#boardId()}, default {@code TQBR} — the main T+ board
+ * of the Moscow Exchange), with no fallback to other boards.
  */
 @Slf4j
 @Component
@@ -112,7 +118,7 @@ public class MoexClient {
         }
 
         BigDecimal price = rows.stream()
-                .filter(row -> "TQBR".equals(row.boardid()))
+                .filter(row -> properties.boardId().equals(row.boardid()))
                 .map(MoexMarketDataRow::last)
                 .filter(Objects::nonNull)
                 .findFirst()
@@ -129,16 +135,21 @@ public class MoexClient {
     }
 
     /**
-     * Picks the first non-null lot size from the {@code securities} block, if any.
-     * MOEX returns one row per {@code (SECID, BOARDID)} pair; the lot size is the
-     * same across boards for a given ticker, so the value for TQBR wins.
+     * Picks the lot size from the configured board ({@link MarketProperties#boardId()},
+     * default {@code TQBR}) in the {@code securities} block, if present.
+     *
+     * <p>MOEX returns one row per {@code (SECID, BOARDID)} pair and the lot size
+     * differs across boards (e.g. GAZP: {@code SMAL} lot = 1, {@code TQBR} lot = 10),
+     * so the row is selected strictly by board with no fallback. Returns {@code null}
+     * when MOEX did not return a lot size for the board — the caller then keeps the
+     * persisted value.
      */
     private Integer extractLotSize(MoexSecuritiesBlock securities) {
         if (securities == null || securities.data() == null) {
             return null;
         }
         return securities.data().stream()
-                .filter(row -> "TQBR".equals(row.boardid()))
+                .filter(row -> properties.boardId().equals(row.boardid()))
                 .map(MoexSecuritiesRow::lotsize)
                 .filter(Objects::nonNull)
                 .map(BigDecimal::intValueExact)

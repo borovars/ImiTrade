@@ -257,6 +257,8 @@ adding a constant in `ErrorCodes` for new codes.
     - `APP_MOEX_BASE_URL` — MOEX ISS root (default `https://iss.moex.com/iss`)
     - `APP_MARKET_SCHEDULER_ENABLED` — enable price-refresh scheduler (default `true`)
     - `APP_MARKET_SCHEDULER_FIXED_RATE` — refresh period in ms (default `60000`)
+    - `APP_MARKET_MOEX_BOARD_ID` — MOEX trading board both price and lot size are read from (default `TQBR`, the main T+ board; no fallback to other boards)
+    - `APP_MARKET_SCHEDULER_FIXED_RATE` — refresh period in ms (default `60000`)
 
 ## Common Commands
 
@@ -292,7 +294,7 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
     - `profitLoss     = Σ((currentPrice − averagePrice) × quantity)` (scale 4, HALF_UP)
     - `totalAssets    = balance + portfolioValue` (scale 4, HALF_UP)
     - `positionsCount = number of current portfolio_positions`
-- **MOEX price flow**: `MoexClient.getMarketSnapshot` fetches the `LAST` price and `LOTSIZE` for a ticker in a single MOEX ISS call (`iss.only=marketdata,securities` — `LOTSIZE` lives in the `securities` block, not `marketdata`); `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice` and, when MOEX returns a lot size, `stocks.lot_size` via `StockRepository.updateLotSize` (a missing lot size keeps the persisted value — the contract forbids making one up); trade/account/portfolio logic reads `current_price`/`lot_size` from the DB, so it always uses the last value the scheduler persisted
+- **MOEX price flow**: `MoexClient.getMarketSnapshot` fetches the `LAST` price and `LOTSIZE` for a ticker in a single MOEX ISS call (`iss.only=marketdata,securities` — `LOTSIZE` lives in the `securities` block, not `marketdata`); both values are filtered strictly by the configured board (`MarketProperties.boardId`, default `TQBR` — the main T+ board of the Moscow Exchange), with no fallback to other boards, because MOEX returns one row per `(SECID, BOARDID)` pair and values differ across boards (e.g. GAZP: `SMAL` lot = 1, `TQBR` lot = 10); `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice` and, when MOEX returns a lot size for the board, `stocks.lot_size` via `StockRepository.updateLotSize` (a missing lot size keeps the persisted value — the contract forbids making one up); trade/account/portfolio logic reads `current_price`/`lot_size` from the DB, so it always uses the last value the scheduler persisted
 - Transactions are the source of truth for trade history
 
 ## DO / DON'T

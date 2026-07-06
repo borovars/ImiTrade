@@ -47,14 +47,15 @@ class MoexClientTest {
         builder.messageConverters(converters -> converters.add(textPlainJsonConverter));
         server = MockRestServiceServer.bindTo(builder).build();
 
-        MarketProperties properties = new MarketProperties(BASE_URL, "stock", "shares", "LAST", "LOTSIZE");
+        MarketProperties properties = new MarketProperties(BASE_URL, "stock", "shares", "TQBR", "LAST", "LOTSIZE");
         moexClient = new MoexClient(builder.build(), properties);
     }
 
     @DisplayName("getMarketSnapshot: returns price + lotSize from a single MOEX call")
     @Test
     void getMarketSnapshotReturnsPriceAndLotSize() {
-        // Several boards; some without a trade yet — the client picks the first non-null price.
+        // Two boards; the lot size differs across boards (TQBT=1, TQBR=10) — the client
+        // must pick the TQBR value, not the first non-null.
         String body = """
                 {"marketdata": {
                   "columns": ["SECID","BOARDID","LAST"],
@@ -62,7 +63,7 @@ class MoexClientTest {
                 },
                 "securities": {
                   "columns": ["SECID","BOARDID","LOTSIZE"],
-                  "data": [["SBER","TQBT",10], ["SBER","TQBR",10]]
+                  "data": [["SBER","TQBT",1], ["SBER","TQBR",10]]
                 }}
                 """;
         server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
@@ -75,8 +76,54 @@ class MoexClientTest {
         MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("SBER");
 
         assertThat(snapshot.last()).isEqualByComparingTo("312.45");
-        assertThat(snapshot.lotSize()).isEqualTo(10);
+        assertThat(snapshot.lotSize()).isEqualTo(10); // TQBR, not TQBT (1)
         server.verify();
+    }
+
+    @DisplayName("getMarketSnapshot: picks the TQBR row when several boards carry different prices and lots")
+    @Test
+    void getMarketSnapshotPicksTqbrBoard() {
+        // Three boards, each with its own price and lot size — only the TQBR row wins.
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["GAZP","SMAL",98.02], ["GAZP","TQTF",50.00], ["GAZP","TQBR",96.84]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["GAZP","SMAL",1], ["GAZP","TQTF",1], ["GAZP","TQBR",10]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/GAZP.json")))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("GAZP");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("96.84"); // TQBR, not SMAL (98.02)
+        assertThat(snapshot.lotSize()).isEqualTo(10);               // TQBR, not SMAL/TQTF (1)
+    }
+
+    @DisplayName("getMarketSnapshot: lotSize is null when the TQBR row is absent from securities (no fallback)")
+    @Test
+    void getMarketSnapshotLotSizeNullWhenTqbrAbsent() {
+        // securities has only a non-TQBR board — no fallback to it, lotSize stays null.
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["SBER","TQBR",312.45]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["SBER","SMAL",1]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("SBER");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("312.45");
+        assertThat(snapshot.lotSize()).isNull(); // no fallback to SMAL
     }
 
     @DisplayName("getMarketSnapshot: lotSize is null when MOEX omits the securities block")
