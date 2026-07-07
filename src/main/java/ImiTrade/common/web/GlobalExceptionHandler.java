@@ -23,6 +23,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -152,6 +153,20 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, ErrorCodes.ACCESS_DENIED,
                 "Access denied", request, null);
+    }
+
+    /**
+     * Missing static resource (e.g. a company logo requested by a path that does not
+     * resolve to a bundled file). Returned as 404 rather than falling through to the
+     * generic 500 handler. The frontend's logo resolver always points at either a
+     * ticker-named SVG or {@code default.svg}, so this only triggers for direct,
+     * out-of-band requests.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse> handleNoResourceFound(NoResourceFoundException ex,
+                                                             HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ErrorCodes.RESOURCE_NOT_FOUND,
+                "Resource not found", request, null);
     }
 
     @ExceptionHandler(Exception.class)

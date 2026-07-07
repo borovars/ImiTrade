@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Company">
+  <circle cx="32" cy="32" r="30" fill="#9aa0a6"/>
+  <g fill="#ffffff">
+    <rect x="22" y="28" width="20" height="18" rx="1.5"/>
+    <rect x="25" y="32" width="3.5" height="3.5" rx="0.5"/>
+    <rect x="30.25" y="32" width="3.5" height="3.5" rx="0.5"/>
+    <rect x="35.5" y="32" width="3.5" height="3.5" rx="0.5"/>
+    <rect x="25" y="38" width="3.5" height="3.5" rx="0.5"/>
+    <rect x="30.25" y="38" width="3.5" height="3.5" rx="0.5"/>
+    <rect x="35.5" y="38" width="3.5" height="3.5" rx="0.5"/>
+    <path d="M32 19l11 7H21z"/>
+  </g>
+</svg>

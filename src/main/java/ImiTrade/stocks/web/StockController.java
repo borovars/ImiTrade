@@ -2,6 +2,7 @@ package ImiTrade.stocks.web;
 
 import ImiTrade.common.web.ApiResponse;
 import ImiTrade.stocks.domain.Stock;
+import ImiTrade.stocks.domain.StockLogoResolver;
 import ImiTrade.stocks.domain.StockService;
 import ImiTrade.stocks.dto.StockResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StockController {
 
     private final StockService stockService;
+    private final StockLogoResolver stockLogoResolver;
 
     @Operation(summary = "List stocks", description = "Returns a page of stocks with optional ticker/companyName filters.")
     @ApiResponses({
@@ -50,7 +52,7 @@ public class StockController {
             @RequestParam(name = "companyName", required = false) String companyName,
             @PageableDefault(size = 20) Pageable pageable) {
         Page<Stock> stocks = stockService.getStocks(ticker, companyName, pageable);
-        return ResponseEntity.ok(stocks.map(StockResponse::from));
+        return ResponseEntity.ok(stocks.map(stock -> StockResponse.from(stock, stockLogoResolver.resolve(stock.getTicker()))));
     }
 
     @Operation(summary = "Get stock by id", description = "Returns the stock with the given id.")
@@ -67,6 +69,6 @@ public class StockController {
     @GetMapping("/{id}")
     public ResponseEntity<StockResponse> getStockById(@PathVariable("id") Long id) {
         Stock stock = stockService.getStockById(id);
-        return ResponseEntity.ok(StockResponse.from(stock));
+        return ResponseEntity.ok(StockResponse.from(stock, stockLogoResolver.resolve(stock.getTicker())));
     }
 }
