@@ -65,7 +65,7 @@ class TradeIntegrationTest extends PostgresTestBase {
         Long userId = userRepository.findByEmail("trader@example.com").orElseThrow().getId();
         BigDecimal balanceBefore = userRepository.findById(userId).orElseThrow().getBalance();
 
-        // SBER is seeded by V2 with current_price 310.5000 (V3); id = 1
+        // SBER is seeded by V2 with current_price 310.5000 (V3) and lot_size 1 (V6); id = 1
         BuyReq req = new BuyReq(1L, 10);
         MvcResult result = mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
@@ -75,7 +75,9 @@ class TradeIntegrationTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.transactionId").isNumber())
                 .andExpect(jsonPath("$.stockTicker").value("SBER"))
                 .andExpect(jsonPath("$.type").value("BUY"))
-                .andExpect(jsonPath("$.quantity").value(10))
+                .andExpect(jsonPath("$.quantity").value(10)) // 10 lots × 1 share/lot
+                .andExpect(jsonPath("$.lots").value(10))
+                .andExpect(jsonPath("$.lotSize").value(1))
                 .andExpect(jsonPath("$.price").value(310.5000))
                 .andExpect(jsonPath("$.totalAmount").value(3105.0000))
                 .andReturn();
@@ -83,11 +85,12 @@ class TradeIntegrationTest extends PostgresTestBase {
         Long transactionId = objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("transactionId").asLong();
 
-        // a BUY transaction row exists
+        // a BUY transaction row exists with the computed share quantity
         Transaction tx = transactionRepository.findById(transactionId).orElseThrow();
         assertThat(tx.getType()).isEqualTo(TransactionType.BUY);
         assertThat(tx.getUserId()).isEqualTo(userId);
         assertThat(tx.getStockId()).isEqualTo(1L);
+        assertThat(tx.getQuantity()).isEqualTo(10);
         assertThat(tx.getTotalAmount()).isEqualByComparingTo(new BigDecimal("3105.0000"));
 
         // balance decreased by the trade total
@@ -102,13 +105,44 @@ class TradeIntegrationTest extends PostgresTestBase {
     }
 
     @Test
+    @DisplayName("POST /api/v1/trades/buy — multiplies lots by lotSize (GAZP lotSize=10, 3 lots -> 30 shares)")
+    void buyTradeMultipliesLotsByLotSize() throws Exception {
+        RegisterRequest register = new RegisterRequest("lottrader@example.com", "lottrader", "S3cret!pass", null);
+        String token = registerAndExtractToken(register);
+        Long userId = userRepository.findByEmail("lottrader@example.com").orElseThrow().getId();
+
+        // GAZP is seeded by V2 with current_price 170.2000 (V3) and lot_size 10 (V6); id = 2
+        MvcResult result = mockMvc.perform(post("/api/v1/trades/buy")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new BuyReq(2L, 3))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockTicker").value("GAZP"))
+                .andExpect(jsonPath("$.quantity").value(30)) // 3 lots × 10 shares/lot
+                .andExpect(jsonPath("$.lots").value(3))
+                .andExpect(jsonPath("$.lotSize").value(10))
+                .andExpect(jsonPath("$.price").value(170.2000))
+                .andExpect(jsonPath("$.totalAmount").value(5106.0000))
+                .andReturn();
+
+        Long transactionId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("transactionId").asLong();
+        Transaction tx = transactionRepository.findById(transactionId).orElseThrow();
+        assertThat(tx.getQuantity()).isEqualTo(30);
+
+        PortfolioPosition position = portfolioPositionRepository
+                .findByUserIdAndStockId(userId, 2L).orElseThrow();
+        assertThat(position.getQuantity()).isEqualTo(30);
+    }
+
+    @Test
     @DisplayName("POST /api/v1/trades/sell — 200, creates transaction, credits balance, decreases quantity")
     void sellTrade() throws Exception {
         RegisterRequest register = new RegisterRequest("seller@example.com", "seller", "S3cret!pass", null);
         String token = registerAndExtractToken(register);
         Long userId = userRepository.findByEmail("seller@example.com").orElseThrow().getId();
 
-        // precondition: buy 10 shares first
+        // precondition: buy 10 lots of SBER (lotSize=1 -> 10 shares) first
         mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -117,7 +151,7 @@ class TradeIntegrationTest extends PostgresTestBase {
 
         BigDecimal balanceBefore = userRepository.findById(userId).orElseThrow().getBalance();
 
-        // sell 4 of 10 shares of SBER at 310.5000 -> total 1242.0000
+        // sell 4 lots of SBER (lotSize=1 -> 4 shares) at 310.5000 -> total 1242.0000
         SellReq req = new SellReq(1L, 4);
         MvcResult result = mockMvc.perform(post("/api/v1/trades/sell")
                         .header("Authorization", "Bearer " + token)
@@ -126,6 +160,7 @@ class TradeIntegrationTest extends PostgresTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("SELL"))
                 .andExpect(jsonPath("$.quantity").value(4))
+                .andExpect(jsonPath("$.lots").value(4))
                 .andExpect(jsonPath("$.totalAmount").value(1242.0000))
                 .andReturn();
 
@@ -134,6 +169,7 @@ class TradeIntegrationTest extends PostgresTestBase {
 
         Transaction tx = transactionRepository.findById(transactionId).orElseThrow();
         assertThat(tx.getType()).isEqualTo(TransactionType.SELL);
+        assertThat(tx.getQuantity()).isEqualTo(4);
 
         // balance increased by the trade total
         BigDecimal balanceAfter = userRepository.findById(userId).orElseThrow().getBalance();
@@ -159,6 +195,20 @@ class TradeIntegrationTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"));
     }
 
+    @Test
+    @DisplayName("POST /api/v1/trades/buy with lots <= 0 returns 400 VALIDATION_ERROR")
+    void buyInvalidLots() throws Exception {
+        String token = registerAndExtractToken(
+                new RegisterRequest("badlots@example.com", "badlots", "S3cret!pass", null));
+
+        mockMvc.perform(post("/api/v1/trades/buy")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new BuyReq(1L, 0))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
     // ---- helpers ----
 
     private String registerAndExtractToken(RegisterRequest req) throws Exception {
@@ -170,9 +220,9 @@ class TradeIntegrationTest extends PostgresTestBase {
         return objectMapper.readTree(body).get("token").asText();
     }
 
-    private record BuyReq(Long stockId, Integer quantity) {
+    private record BuyReq(Long stockId, Integer lots) {
     }
 
-    private record SellReq(Long stockId, Integer quantity) {
+    private record SellReq(Long stockId, Integer lots) {
     }
 }

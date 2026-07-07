@@ -47,24 +47,120 @@ class MoexClientTest {
         builder.messageConverters(converters -> converters.add(textPlainJsonConverter));
         server = MockRestServiceServer.bindTo(builder).build();
 
-        MarketProperties properties = new MarketProperties(BASE_URL, "stock", "shares", "LAST");
+        MarketProperties properties = new MarketProperties(BASE_URL, "stock", "shares", "TQBR", "LAST", "LOTSIZE");
         moexClient = new MoexClient(builder.build(), properties);
+    }
+
+    @DisplayName("getMarketSnapshot: returns price + lotSize from a single MOEX call")
+    @Test
+    void getMarketSnapshotReturnsPriceAndLotSize() {
+        // Two boards; the lot size differs across boards (TQBT=1, TQBR=10) — the client
+        // must pick the TQBR value, not the first non-null.
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["SBER","TQBT",null], ["SBER","TQBR",312.45]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["SBER","TQBT",1], ["SBER","TQBR",10]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
+                .andExpect(queryParam("iss.only", "marketdata,securities"))
+                .andExpect(queryParam("iss.meta", "off"))
+                .andExpect(queryParam("marketdata.columns", "SECID,BOARDID,LAST"))
+                .andExpect(queryParam("securities.columns", "SECID,BOARDID,LOTSIZE"))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("SBER");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("312.45");
+        assertThat(snapshot.lotSize()).isEqualTo(10); // TQBR, not TQBT (1)
+        server.verify();
+    }
+
+    @DisplayName("getMarketSnapshot: picks the TQBR row when several boards carry different prices and lots")
+    @Test
+    void getMarketSnapshotPicksTqbrBoard() {
+        // Three boards, each with its own price and lot size — only the TQBR row wins.
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["GAZP","SMAL",98.02], ["GAZP","TQTF",50.00], ["GAZP","TQBR",96.84]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["GAZP","SMAL",1], ["GAZP","TQTF",1], ["GAZP","TQBR",10]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/GAZP.json")))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("GAZP");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("96.84"); // TQBR, not SMAL (98.02)
+        assertThat(snapshot.lotSize()).isEqualTo(10);               // TQBR, not SMAL/TQTF (1)
+    }
+
+    @DisplayName("getMarketSnapshot: lotSize is null when the TQBR row is absent from securities (no fallback)")
+    @Test
+    void getMarketSnapshotLotSizeNullWhenTqbrAbsent() {
+        // securities has only a non-TQBR board — no fallback to it, lotSize stays null.
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["SBER","TQBR",312.45]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["SBER","SMAL",1]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("SBER");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("312.45");
+        assertThat(snapshot.lotSize()).isNull(); // no fallback to SMAL
+    }
+
+    @DisplayName("getMarketSnapshot: lotSize is null when MOEX omits the securities block")
+    @Test
+    void getMarketSnapshotLotSizeNullWhenNoSecurities() {
+        String body = """
+                {"marketdata": {
+                  "columns": ["SECID","BOARDID","LAST"],
+                  "data": [["SBER","TQBR",312.45]]
+                }}
+                """;
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
+                .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
+
+        MoexClient.MoexSnapshot snapshot = moexClient.getMarketSnapshot("SBER");
+
+        assertThat(snapshot.last()).isEqualByComparingTo("312.45");
+        assertThat(snapshot.lotSize()).isNull();
     }
 
     @DisplayName("getCurrentPrice: returns LAST when MOEX returns rows with a price")
     @Test
     void getCurrentPriceReturnsLast() {
-        // Several boards; some without a trade yet — the client picks the first non-null price.
         String body = """
                 {"marketdata": {
                   "columns": ["SECID","BOARDID","LAST"],
                   "data": [["SBER","TQBT",null], ["SBER","TQBR",312.45]]
+                },
+                "securities": {
+                  "columns": ["SECID","BOARDID","LOTSIZE"],
+                  "data": [["SBER","TQBR",10]]
                 }}
                 """;
         server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
-                .andExpect(queryParam("iss.only", "marketdata"))
-                .andExpect(queryParam("iss.meta", "off"))
+                .andExpect(queryParam("iss.only", "marketdata,securities"))
                 .andExpect(queryParam("marketdata.columns", "SECID,BOARDID,LAST"))
+                .andExpect(queryParam("securities.columns", "SECID,BOARDID,LOTSIZE"))
                 .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
 
         BigDecimal price = moexClient.getCurrentPrice("SBER");
@@ -73,9 +169,9 @@ class MoexClientTest {
         server.verify();
     }
 
-    @DisplayName("getCurrentPrice: throws InvalidTickerException when MOEX returns no rows")
+    @DisplayName("getMarketSnapshot: throws InvalidTickerException when MOEX returns no rows")
     @Test
-    void getCurrentPriceThrowsOnEmptyData() {
+    void getMarketSnapshotThrowsOnEmptyData() {
         String body = """
                 {"marketdata": {
                   "columns": ["SECID","BOARDID","LAST"],
@@ -85,13 +181,13 @@ class MoexClientTest {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/NOPE.json")))
                 .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
 
-        assertThatThrownBy(() -> moexClient.getCurrentPrice("NOPE"))
+        assertThatThrownBy(() -> moexClient.getMarketSnapshot("NOPE"))
                 .isInstanceOf(InvalidTickerException.class);
     }
 
-    @DisplayName("getCurrentPrice: throws MarketDataUnavailableException when LAST is null for every row")
+    @DisplayName("getMarketSnapshot: throws MarketDataUnavailableException when LAST is null for every row")
     @Test
-    void getCurrentPriceThrowsWhenPriceMissing() {
+    void getMarketSnapshotThrowsWhenPriceMissing() {
         String body = """
                 {"marketdata": {
                   "columns": ["SECID","BOARDID","LAST"],
@@ -101,24 +197,24 @@ class MoexClientTest {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
                 .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
 
-        assertThatThrownBy(() -> moexClient.getCurrentPrice("SBER"))
+        assertThatThrownBy(() -> moexClient.getMarketSnapshot("SBER"))
                 .isInstanceOf(MarketDataUnavailableException.class);
     }
 
-    @DisplayName("getCurrentPrice: throws MarketDataUnavailableException on MOEX 5xx")
+    @DisplayName("getMarketSnapshot: throws MarketDataUnavailableException on MOEX 5xx")
     @Test
-    void getCurrentPriceThrowsOnServerError() {
+    void getMarketSnapshotThrowsOnServerError() {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/engines/stock/markets/shares/securities/SBER.json")))
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
-        assertThatThrownBy(() -> moexClient.getCurrentPrice("SBER"))
+        assertThatThrownBy(() -> moexClient.getMarketSnapshot("SBER"))
                 .isInstanceOf(MarketDataUnavailableException.class);
     }
 
-    @DisplayName("getCurrentPrice: throws InvalidTickerException for a blank ticker without calling MOEX")
+    @DisplayName("getMarketSnapshot: throws InvalidTickerException for a blank ticker without calling MOEX")
     @Test
-    void getCurrentPriceThrowsOnBlankTicker() {
-        assertThatThrownBy(() -> moexClient.getCurrentPrice("  "))
+    void getMarketSnapshotThrowsOnBlankTicker() {
+        assertThatThrownBy(() -> moexClient.getMarketSnapshot("  "))
                 .isInstanceOf(InvalidTickerException.class);
 
         // No HTTP interaction should have been recorded.

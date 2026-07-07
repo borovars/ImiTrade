@@ -26,10 +26,13 @@ import java.math.BigDecimal;
  *   <li>{@code company_name}  — VARCHAR(255)</li>
  *   <li>{@code exchange}      — VARCHAR(50)</li>
  *   <li>{@code current_price} — NUMERIC(19,4), added by {@code V3__add_current_price_to_stocks.sql}</li>
+ *   <li>{@code lot_size}      — INTEGER, added by {@code V6__add_lot_size_to_stocks.sql}</li>
  * </ul>
  *
  * <p>Stocks are read-only: they are seeded by the {@code V2__insert_initial_stocks.sql}
- * migration and never created/updated/deleted through the API.
+ * migration and never created/updated/deleted through the API. The only mutable columns
+ * are {@code current_price} and {@code lot_size}, both refreshed by the market-data
+ * scheduler ({@code MarketDataScheduler}).
  */
 @Getter
 @Setter
@@ -55,4 +58,7 @@ public class Stock {
 
     @Column(name = "current_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal currentPrice;
+
+    @Column(name = "lot_size", nullable = false)
+    private Integer lotSize;
 }

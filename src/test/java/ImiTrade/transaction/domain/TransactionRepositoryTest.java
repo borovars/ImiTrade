@@ -62,10 +62,10 @@ class TransactionRepositoryTest extends ImiTrade.testsupport.PostgresTestBase {
 
         Stock stockA = stockRepository.save(Stock.builder()
                 .ticker("TXA").companyName("Tx Alpha Inc.").exchange("MOEX")
-                .currentPrice(new BigDecimal("100.0000")).build());
+                .currentPrice(new BigDecimal("100.0000")).lotSize(1).build());
         Stock stockB = stockRepository.save(Stock.builder()
                 .ticker("TXB").companyName("Tx Beta Inc.").exchange("MOEX")
-                .currentPrice(new BigDecimal("200.0000")).build());
+                .currentPrice(new BigDecimal("200.0000")).lotSize(1).build());
         stockAId = stockA.getId();
         stockBId = stockB.getId();
 

@@ -1,6 +1,7 @@
 package ImiTrade.market.domain;
 
 import ImiTrade.common.exception.MarketDataUnavailableException;
+import ImiTrade.market.client.MoexClient;
 import ImiTrade.market.config.SchedulerProperties;
 import ImiTrade.stocks.domain.Stock;
 import ImiTrade.stocks.domain.StockRepository;
@@ -47,21 +48,25 @@ class MarketDataSchedulerTest {
         when(schedulerProperties.fixedRate()).thenReturn(60000L);
     }
 
-    @DisplayName("refreshPrices: updates every stock — getCurrentPrice + updateCurrentPrice called for each")
+    @DisplayName("refreshPrices: updates every stock — getMarketSnapshot + updateCurrentPrice + updateLotSize per ticker")
     @Test
     void refreshAllStocks() {
         Stock sber = stock(1L, "SBER", new BigDecimal("290.5000"));
         Stock gazp = stock(2L, "GAZP", new BigDecimal("170.2000"));
         when(stockRepository.findAll()).thenReturn(List.of(sber, gazp));
-        when(marketDataService.getCurrentPrice("SBER")).thenReturn(new BigDecimal("300.0000"));
-        when(marketDataService.getCurrentPrice("GAZP")).thenReturn(new BigDecimal("180.0000"));
+        when(marketDataService.getMarketSnapshot("SBER"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("300.0000"), 10));
+        when(marketDataService.getMarketSnapshot("GAZP"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("180.0000"), 10));
 
         scheduler.refreshPrices();
 
-        verify(marketDataService, times(1)).getCurrentPrice("SBER");
-        verify(marketDataService, times(1)).getCurrentPrice("GAZP");
+        verify(marketDataService, times(1)).getMarketSnapshot("SBER");
+        verify(marketDataService, times(1)).getMarketSnapshot("GAZP");
         verify(stockRepository).updateCurrentPrice(eq(1L), eq(new BigDecimal("300.0000")));
         verify(stockRepository).updateCurrentPrice(eq(2L), eq(new BigDecimal("180.0000")));
+        verify(stockRepository).updateLotSize(eq(1L), eq(10));
+        verify(stockRepository).updateLotSize(eq(2L), eq(10));
     }
 
     @DisplayName("refreshPrices: persists the freshly fetched price (not the stale one) for each ticker")
@@ -69,13 +74,28 @@ class MarketDataSchedulerTest {
     void updatesWithFreshPrice() {
         Stock lkoh = stock(3L, "LKOH", new BigDecimal("6800.0000"));
         when(stockRepository.findAll()).thenReturn(List.of(lkoh));
-        when(marketDataService.getCurrentPrice("LKOH")).thenReturn(new BigDecimal("7123.4500"));
+        when(marketDataService.getMarketSnapshot("LKOH"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("7123.4500"), 1));
 
         scheduler.refreshPrices();
 
         ArgumentCaptor<BigDecimal> priceCaptor = ArgumentCaptor.forClass(BigDecimal.class);
         verify(stockRepository).updateCurrentPrice(eq(3L), priceCaptor.capture());
         assertThat(priceCaptor.getValue()).isEqualByComparingTo("7123.4500");
+    }
+
+    @DisplayName("refreshPrices: keeps the DB lot size when MOEX returns none")
+    @Test
+    void keepsLotSizeWhenMoexReturnsNone() {
+        Stock sber = stock(1L, "SBER", new BigDecimal("290.5000"));
+        when(stockRepository.findAll()).thenReturn(List.of(sber));
+        when(marketDataService.getMarketSnapshot("SBER"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("300.0000"), null));
+
+        scheduler.refreshPrices();
+
+        verify(stockRepository).updateCurrentPrice(eq(1L), eq(new BigDecimal("300.0000")));
+        verify(stockRepository, never()).updateLotSize(anyLong(), any());
     }
 
     @DisplayName("refreshPrices: a failure for one ticker does not abort the rest")
@@ -85,10 +105,12 @@ class MarketDataSchedulerTest {
         Stock lkoh = stock(3L, "LKOH", new BigDecimal("6800.0000"));
         Stock ydex = stock(4L, "YDEX", new BigDecimal("4100.0000"));
         when(stockRepository.findAll()).thenReturn(List.of(sber, lkoh, ydex));
-        when(marketDataService.getCurrentPrice("SBER")).thenReturn(new BigDecimal("300.0000"));
-        when(marketDataService.getCurrentPrice("LKOH"))
+        when(marketDataService.getMarketSnapshot("SBER"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("300.0000"), 1));
+        when(marketDataService.getMarketSnapshot("LKOH"))
                 .thenThrow(new MarketDataUnavailableException("MOEX ISS unreachable for ticker=LKOH"));
-        when(marketDataService.getCurrentPrice("YDEX")).thenReturn(new BigDecimal("4200.0000"));
+        when(marketDataService.getMarketSnapshot("YDEX"))
+                .thenReturn(new MoexClient.MoexSnapshot(new BigDecimal("4200.0000"), 1));
 
         scheduler.refreshPrices();
 
@@ -106,7 +128,7 @@ class MarketDataSchedulerTest {
 
         scheduler.refreshPrices();
 
-        verify(marketDataService, never()).getCurrentPrice(any());
+        verify(marketDataService, never()).getMarketSnapshot(any());
         verify(stockRepository, never()).updateCurrentPrice(anyLong(), any(BigDecimal.class));
     }
 
@@ -117,6 +139,7 @@ class MarketDataSchedulerTest {
                 .companyName(ticker + " Inc.")
                 .exchange("MOEX")
                 .currentPrice(price)
+                .lotSize(1)
                 .build();
     }
 }

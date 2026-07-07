@@ -46,22 +46,30 @@ public class TradeService {
     /**
      * Buys shares of a stock at its current price for the given user.
      *
+     * <p>The client sends a {@code lots} count; the actual share {@code quantity}
+     * is computed on the backend as {@code lots × lotSize} and is the value stored
+     * on the transaction and portfolio position. Divisibility by {@code lotSize} is
+     * therefore guaranteed by construction.
+     *
      * @param userId  the authenticated user id
-     * @param request stock id and quantity
+     * @param request stock id and number of lots
      * @return the recorded trade
-     * @throws InvalidQuantityException    if {@code quantity <= 0}
+     * @throws InvalidQuantityException    if {@code lots <= 0} or the stock lot size is invalid
      * @throws StockNotFoundException      if the stock does not exist
      * @throws InsufficientBalanceException if the user cannot cover the trade total
      */
     @Transactional
     public TradeResponse buy(Long userId, BuyStockRequest request) {
-        int quantity = request.quantity();
-        if (quantity <= 0) {
-            throw new InvalidQuantityException(quantity);
+        int lots = request.lots();
+        if (lots <= 0) {
+            throw new InvalidQuantityException(lots);
         }
 
         User user = userService.getById(userId);
         Stock stock = stockService.getStockById(request.stockId());
+        int lotSize = resolveLotSize(stock);
+        int quantity = lots * lotSize;
+
         BigDecimal price = stock.getCurrentPrice();
         BigDecimal totalAmount = price.multiply(BigDecimal.valueOf(quantity));
 
@@ -101,26 +109,36 @@ public class TradeService {
 
         user.setBalance(user.getBalance().subtract(totalAmount));
 
-        log.info("BUY: user={} stock={} qty={} total={}", userId, stock.getTicker(), quantity, totalAmount);
-        return TradeResponse.of(tx, stock.getTicker());
+        log.info("BUY: user={} stock={} lots={} qty={} total={}",
+                userId, stock.getTicker(), lots, quantity, totalAmount);
+        return TradeResponse.of(tx, stock.getTicker(), lotSize);
     }
 
     /**
      * Sells shares of a stock from the given user's portfolio at its current price.
      *
+     * <p>The client sends a {@code lots} count; the actual share {@code quantity}
+     * is computed on the backend as {@code lots × lotSize} and is the value stored
+     * on the transaction and used to reduce the portfolio position. Divisibility by
+     * {@code lotSize} is therefore guaranteed by construction.
+     *
      * @param userId  the authenticated user id
-     * @param request stock id and quantity
+     * @param request stock id and number of lots
      * @return the recorded trade
-     * @throws InvalidQuantityException           if {@code quantity <= 0}
+     * @throws InvalidQuantityException           if {@code lots <= 0} or the stock lot size is invalid
      * @throws PortfolioPositionNotFoundException if the user holds no position for the stock
      * @throws InsufficientStockQuantityException if the position has fewer shares than requested
      */
     @Transactional
     public TradeResponse sell(Long userId, SellStockRequest request) {
-        int quantity = request.quantity();
-        if (quantity <= 0) {
-            throw new InvalidQuantityException(quantity);
+        int lots = request.lots();
+        if (lots <= 0) {
+            throw new InvalidQuantityException(lots);
         }
+
+        Stock stock = stockService.getStockById(request.stockId());
+        int lotSize = resolveLotSize(stock);
+        int quantity = lots * lotSize;
 
         User user = userService.getById(userId);
 
@@ -132,7 +150,6 @@ public class TradeService {
             throw new InsufficientStockQuantityException(position.getQuantity(), quantity);
         }
 
-        Stock stock = stockService.getStockById(request.stockId());
         BigDecimal price = stock.getCurrentPrice();
         BigDecimal totalAmount = price.multiply(BigDecimal.valueOf(quantity));
 
@@ -156,7 +173,25 @@ public class TradeService {
 
         user.setBalance(user.getBalance().add(totalAmount));
 
-        log.info("SELL: user={} stock={} qty={} total={}", userId, stock.getTicker(), quantity, totalAmount);
-        return TradeResponse.of(tx, stock.getTicker());
+        log.info("SELL: user={} stock={} lots={} qty={} total={}",
+                userId, stock.getTicker(), lots, quantity, totalAmount);
+        return TradeResponse.of(tx, stock.getTicker(), lotSize);
+    }
+
+    /**
+     * Returns the stock's lot size, rejecting a non-positive value as a data-integrity
+     * error (the catalog should always carry a positive lot size after the V6 migration).
+     *
+     * @param stock the stock to trade
+     * @return the positive lot size
+     * @throws InvalidQuantityException if the persisted lot size is not positive
+     */
+    private int resolveLotSize(Stock stock) {
+        Integer lotSize = stock.getLotSize();
+        if (lotSize == null || lotSize <= 0) {
+            throw new InvalidQuantityException(
+                    "Stock " + stock.getTicker() + " has invalid lot size: " + lotSize);
+        }
+        return lotSize;
     }
 }

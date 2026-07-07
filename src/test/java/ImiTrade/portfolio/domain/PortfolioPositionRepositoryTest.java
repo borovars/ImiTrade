@@ -54,11 +54,11 @@ class PortfolioPositionRepositoryTest {
 
         Stock sber = stockRepository.save(Stock.builder()
                 .ticker("SBER").companyName("Сбербанк").exchange("MOEX")
-                .currentPrice(new BigDecimal("215.1000")).build());
+                .currentPrice(new BigDecimal("215.1000")).lotSize(1).build());
         aaplId = sber.getId();
         Stock gazp = stockRepository.save(Stock.builder()
                 .ticker("GAZP").companyName("Газпром").exchange("MOEX")
-                .currentPrice(new BigDecimal("420.0000")).build());
+                .currentPrice(new BigDecimal("420.0000")).lotSize(10).build());
 
         portfolioPositionRepository.saveAll(List.of(
                 PortfolioPosition.builder()

@@ -32,4 +32,18 @@ public class MarketDataService {
         log.debug("Fetching current price for ticker={}", ticker);
         return moexClient.getCurrentPrice(ticker);
     }
+
+    /**
+     * Returns a snapshot (last price + lot size) for the given ticker, fetched in a
+     * single MOEX ISS call.
+     *
+     * @param ticker MOEX security identifier, e.g. {@code SBER}
+     * @return a {@link MoexClient.MoexSnapshot} with a non-null price and a nullable lot size
+     * @throws ImiTrade.common.exception.InvalidTickerException        if the ticker is blank or unknown
+     * @throws ImiTrade.common.exception.MarketDataUnavailableException if MOEX cannot serve the price
+     */
+    public MoexClient.MoexSnapshot getMarketSnapshot(String ticker) {
+        log.debug("Fetching market snapshot for ticker={}", ticker);
+        return moexClient.getMarketSnapshot(ticker);
+    }
 }

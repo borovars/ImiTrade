@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { Stock } from '@/features/stocks/types/stockTypes';
 import { formatMoney } from '@/shared/utils/format';
-import { quantitySchema, QuantityForm } from '../lib/tradeSchema';
+import { lotsSchema, LotsForm } from '../lib/tradeSchema';
 
 interface TradeStockDialogProps {
   stock: Stock;
@@ -26,16 +26,19 @@ interface TradeStockDialogProps {
   /** MUI-цвет кнопки подтверждения ('success' / 'error' и т.д.). */
   actionColor?: 'success' | 'error' | 'primary';
   isPending: boolean;
-  /** Вызывается с валидным целым quantity > 0. */
-  onSubmit: (quantity: number) => void;
+  /** Вызывается с валидным целым количеством лотов > 0. */
+  onSubmit: (lots: number) => void;
 }
 
 /**
  * Базовая форма сделки (общая для покупки и продажи).
  *
  * Презентационный компонент: не знает про хуки/мутации, только валидирует
- * количество и считает стоимость. Владелец (Buy/Sell-обёртка) передаёт
- * колбэк сабмита и флаг загрузки.
+ * число лотов и показывает итоговое количество акций и стоимость.
+ * Владелец (Buy/Sell-обёртка) передаёт колбэк сабмита и флаг загрузки.
+ *
+ * Пользователь вводит лоты; фактическое число акций = `lots × stock.lotSize`
+ * (отображается тут же для наглядности, но на backend отправляются только лоты).
  */
 export default function TradeStockDialog({
   stock,
@@ -53,25 +56,26 @@ export default function TradeStockDialog({
     control,
     reset,
     formState: { errors },
-  } = useForm<QuantityForm>({
-    resolver: zodResolver(quantitySchema),
-    defaultValues: { quantity: undefined as unknown as number },
+  } = useForm<LotsForm>({
+    resolver: zodResolver(lotsSchema),
+    defaultValues: { lots: undefined as unknown as number },
   });
 
   // Сбрасываем форму при каждом открытии нового диалога.
   useEffect(() => {
     if (open) {
-      reset({ quantity: undefined as unknown as number });
+      reset({ lots: undefined as unknown as number });
     }
   }, [open, reset]);
 
-  const quantity = useWatch({ control, name: 'quantity' });
-  const qty = Number(quantity) || 0;
-  const total = qty > 0 ? qty * stock.currentPrice : 0;
+  const watchedLots = useWatch({ control, name: 'lots' });
+  const lots = Number(watchedLots) || 0;
+  const shares = lots > 0 ? lots * stock.lotSize : 0;
+  const total = shares * stock.currentPrice;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <form onSubmit={handleSubmit(({ quantity }) => onSubmit(quantity))}>
+      <form onSubmit={handleSubmit(({ lots }) => onSubmit(lots))}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 0.5 }}>
@@ -101,15 +105,24 @@ export default function TradeStockDialog({
             </Box>
 
             <TextField
-              label="Quantity"
+              label="Lots"
               type="number"
               autoFocus
               fullWidth
-              error={!!errors.quantity}
-              helperText={errors.quantity?.message}
+              error={!!errors.lots}
+              helperText={errors.lots?.message ?? `1 lot = ${stock.lotSize} shares`}
               inputProps={{ min: 1, step: 1 }}
-              {...register('quantity')}
+              {...register('lots')}
             />
+
+            {shares > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                You are {actionLabel.toLowerCase()}ing:{' '}
+                <Typography component="span" sx={{ fontWeight: 600 }}>
+                  {shares} shares
+                </Typography>
+              </Typography>
+            )}
 
             <Box
               sx={{

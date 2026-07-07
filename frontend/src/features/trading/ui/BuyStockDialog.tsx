@@ -21,9 +21,9 @@ export default function BuyStockDialog({ stock, open, onClose }: BuyStockDialogP
       actionLabel="Buy"
       actionColor="success"
       isPending={isPending}
-      onSubmit={(quantity) => {
+      onSubmit={(lots) => {
         mutate(
-          { stockId: stock.id, quantity },
+          { stockId: stock.id, lots },
           {
             onSuccess: () => onClose(),
           }

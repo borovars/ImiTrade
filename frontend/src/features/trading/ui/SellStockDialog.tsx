@@ -21,9 +21,9 @@ export default function SellStockDialog({ stock, open, onClose }: SellStockDialo
       actionLabel="Sell"
       actionColor="error"
       isPending={isPending}
-      onSubmit={(quantity) => {
+      onSubmit={(lots) => {
         mutate(
-          { stockId: stock.id, quantity },
+          { stockId: stock.id, lots },
           {
             onSuccess: () => onClose(),
           }

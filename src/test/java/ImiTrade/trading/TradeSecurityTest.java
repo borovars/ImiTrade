@@ -43,7 +43,7 @@ class TradeSecurityTest {
     void buyWithoutTokenIs401() throws Exception {
         mockMvc.perform(post("/api/v1/trades/buy")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"stockId\":1,\"quantity\":10}"))
+                        .content("{\"stockId\":1,\"lots\":10}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
@@ -53,7 +53,7 @@ class TradeSecurityTest {
     void sellWithoutTokenIs401() throws Exception {
         mockMvc.perform(post("/api/v1/trades/sell")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"stockId\":1,\"quantity\":5}"))
+                        .content("{\"stockId\":1,\"lots\":5}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }

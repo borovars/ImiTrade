@@ -1,6 +1,7 @@
 package ImiTrade.market;
 
 import ImiTrade.auth.dto.RegisterRequest;
+import ImiTrade.market.client.MoexClient;
 import ImiTrade.market.domain.MarketDataScheduler;
 import ImiTrade.stocks.domain.Stock;
 import ImiTrade.stocks.domain.StockRepository;
@@ -83,7 +84,8 @@ class MarketDataSchedulerIntegrationTest extends PostgresTestBase {
         Stock sber = sber();
         assertThat(sber.getCurrentPrice()).isEqualByComparingTo(SEEDED_SBER_PRICE);
 
-        when(marketDataService.getCurrentPrice(eq(SBER_TICKER))).thenReturn(REFRESHED_SBER_PRICE);
+        when(marketDataService.getMarketSnapshot(eq(SBER_TICKER)))
+                .thenReturn(new MoexClient.MoexSnapshot(REFRESHED_SBER_PRICE, sber.getLotSize()));
         scheduler.refreshPrices();
 
         BigDecimal persisted = stockRepository.findById(sber.getId()).orElseThrow().getCurrentPrice();
@@ -91,30 +93,49 @@ class MarketDataSchedulerIntegrationTest extends PostgresTestBase {
     }
 
     @Test
+    @DisplayName("refreshPrices persists the refreshed lot_size in the database")
+    void refreshUpdatesLotSizeInDb() {
+        Stock sber = sber();
+        int refreshedLotSize = sber.getLotSize() + 5;
+
+        when(marketDataService.getMarketSnapshot(eq(SBER_TICKER)))
+                .thenReturn(new MoexClient.MoexSnapshot(REFRESHED_SBER_PRICE, refreshedLotSize));
+        scheduler.refreshPrices();
+
+        Integer persisted = stockRepository.findById(sber.getId()).orElseThrow().getLotSize();
+        assertThat(persisted).isEqualTo(refreshedLotSize);
+    }
+
+    @Test
     @DisplayName("Trading uses the refreshed current_price with no change to TradeService")
     void tradingUsesRefreshedPrice() throws Exception {
         // 1) refresh SBER to the new price
-        when(marketDataService.getCurrentPrice(eq(SBER_TICKER))).thenReturn(REFRESHED_SBER_PRICE);
+        when(marketDataService.getMarketSnapshot(eq(SBER_TICKER)))
+                .thenReturn(new MoexClient.MoexSnapshot(REFRESHED_SBER_PRICE, sber().getLotSize()));
         scheduler.refreshPrices();
 
-        // 2) a buy trade must price at the refreshed value (1 share @ 999.0000 = 999.0000)
+        // 2) a buy trade must price at the refreshed value (1 lot @ lotSize shares × 999.0000)
         String token = registerAndExtractToken(
                 new RegisterRequest("trader@example.com", "trader", "S3cret!pass", null));
+
+        Stock sber = sber();
+        int expectedQty = sber.getLotSize(); // 1 lot × lotSize shares
+        BigDecimal expectedTotal = REFRESHED_SBER_PRICE.multiply(BigDecimal.valueOf(expectedQty));
 
         MvcResult result = mockMvc.perform(post("/api/v1/trades/buy")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new BuyReq(sber().getId(), 1))))
+                        .content(objectMapper.writeValueAsString(new BuyReq(sber.getId(), 1))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stockTicker").value(SBER_TICKER))
                 .andExpect(jsonPath("$.price").value(REFRESHED_SBER_PRICE.doubleValue()))
-                .andExpect(jsonPath("$.totalAmount").value(REFRESHED_SBER_PRICE.doubleValue()))
+                .andExpect(jsonPath("$.totalAmount").value(expectedTotal.doubleValue()))
                 .andReturn();
 
         // TradeService is unchanged and has no MOEX dependency; it priced the order from the DB
         Long transactionId = objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("transactionId").asLong();
-        Optional<Stock> sberAfter = stockRepository.findById(sber().getId());
+        Optional<Stock> sberAfter = stockRepository.findById(sber.getId());
         assertThat(sberAfter).isPresent();
         assertThat(sberAfter.orElseThrow().getCurrentPrice()).isEqualByComparingTo(REFRESHED_SBER_PRICE);
         assertThat(transactionId).isNotNull();
@@ -137,6 +158,6 @@ class MarketDataSchedulerIntegrationTest extends PostgresTestBase {
         return objectMapper.readTree(body).get("token").asText();
     }
 
-    private record BuyReq(Long stockId, Integer quantity) {
+    private record BuyReq(Long stockId, Integer lots) {
     }
 }

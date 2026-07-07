@@ -14,9 +14,9 @@ public record SellStockRequest(
         @NotNull
         Long stockId,
 
-        @Schema(description = "Number of shares to sell (must be > 0)", example = "5")
+        @Schema(description = "Number of lots to sell (must be > 0). Each lot equals the stock's lot size in shares.", example = "2")
         @NotNull
         @Positive
-        Integer quantity
+        Integer lots
 ) {
 }
