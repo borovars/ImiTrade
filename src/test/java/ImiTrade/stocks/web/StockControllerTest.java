@@ -3,6 +3,7 @@ package ImiTrade.stocks.web;
 import ImiTrade.common.exception.StockNotFoundException;
 import ImiTrade.common.web.GlobalExceptionHandler;
 import ImiTrade.stocks.domain.Stock;
+import ImiTrade.stocks.domain.StockLogoResolver;
 import ImiTrade.stocks.domain.StockService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -50,15 +51,22 @@ class StockControllerTest {
     @MockitoBean
     private StockService stockService;
 
+    @MockitoBean
+    private StockLogoResolver stockLogoResolver;
+
     @DisplayName("GET /api/v1/stocks — 200 with serialized stock page")
     @Test
     void getStocksReturnsPage() throws Exception {
         Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
-                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1).build();
+                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1)
+                .sector("Банки").website("https://www.sberbank.ru")
+                .description("Крупнейший банк России.").build();
         Stock gazp = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром").exchange("MOEX")
                 .currentPrice(new java.math.BigDecimal("170.2000")).lotSize(10).build();
         given(stockService.getStocks(eq(null), eq(null), any()))
                 .willReturn(new PageImpl<>(List.of(sber, gazp), PageRequest.of(0, 20), 2));
+        given(stockLogoResolver.resolve("SBER")).willReturn("/logos/SBER.svg");
+        given(stockLogoResolver.resolve("GAZP")).willReturn("/logos/default.svg");
 
         mockMvc.perform(get("/api/v1/stocks")
                         .accept(MediaType.APPLICATION_JSON))
@@ -69,7 +77,12 @@ class StockControllerTest {
                 .andExpect(jsonPath("$.content[0].companyName").value("Сбербанк"))
                 .andExpect(jsonPath("$.content[0].exchange").value("MOEX"))
                 .andExpect(jsonPath("$.content[0].lotSize").value(1))
+                .andExpect(jsonPath("$.content[0].sector").value("Банки"))
+                .andExpect(jsonPath("$.content[0].website").value("https://www.sberbank.ru"))
+                .andExpect(jsonPath("$.content[0].description").value("Крупнейший банк России."))
+                .andExpect(jsonPath("$.content[0].logoUrl").value("/logos/SBER.svg"))
                 .andExpect(jsonPath("$.content[1].lotSize").value(10))
+                .andExpect(jsonPath("$.content[1].logoUrl").value("/logos/default.svg"))
                 .andExpect(jsonPath("$.totalElements").value(2));
     }
 
@@ -77,8 +90,11 @@ class StockControllerTest {
     @Test
     void getStockByIdFound() throws Exception {
         Stock sber = Stock.builder().id(1L).ticker("SBER").companyName("Сбербанк").exchange("MOEX")
-                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1).build();
+                .currentPrice(new java.math.BigDecimal("310.5000")).lotSize(1)
+                .sector("Банки").website("https://www.sberbank.ru")
+                .description("Крупнейший банк России.").build();
         given(stockService.getStockById(1L)).willReturn(sber);
+        given(stockLogoResolver.resolve("SBER")).willReturn("/logos/SBER.svg");
 
         mockMvc.perform(get("/api/v1/stocks/1").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -86,7 +102,11 @@ class StockControllerTest {
                 .andExpect(jsonPath("$.ticker").value("SBER"))
                 .andExpect(jsonPath("$.companyName").value("Сбербанк"))
                 .andExpect(jsonPath("$.exchange").value("MOEX"))
-                .andExpect(jsonPath("$.lotSize").value(1));
+                .andExpect(jsonPath("$.lotSize").value(1))
+                .andExpect(jsonPath("$.sector").value("Банки"))
+                .andExpect(jsonPath("$.website").value("https://www.sberbank.ru"))
+                .andExpect(jsonPath("$.description").value("Крупнейший банк России."))
+                .andExpect(jsonPath("$.logoUrl").value("/logos/SBER.svg"));
     }
 
     @DisplayName("GET /api/v1/stocks/{id} — 404 with STOCK_NOT_FOUND code for a missing stock")

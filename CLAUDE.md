@@ -15,6 +15,7 @@ Current state:
 - Live price updates from MOEX ISS API (scheduled) ✓
 - **Lot-based trading** (lot size per stock, synced from MOEX; trades are placed in lots, shares remain the source of truth) ✓
 - **Guest Mode** (create guest, X-Guest-Token auth, convert to registered user with bonus) ✓
+- **Company profile** (description, sector, website, logoUrl derived from ticker) ✓
 
 Main business entities:
 - User
@@ -61,7 +62,8 @@ src/main/java/ImiTrade/
 │   └── (no dto — reuses auth dto CurrentUserResponse)
 ├── stocks/                      # Stock catalog (read-only)
 │   ├── web/StockController.java
-│   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java
+│   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java,
+│   │           StockLogoResolver.java  # Derives /logos/{ticker}.svg (cached at startup, no DB column)
 │   └── dto/StockResponse.java
 ├── transaction/                 # Transaction aggregate (entity + repo + enum + history read)
 │   ├── web/TransactionController.java  # GET /api/v1/transactions (filterable, paginated)
@@ -131,18 +133,18 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 | Table               | Purpose                        |
 |---------------------|--------------------------------|
 | `users`              | User accounts, balance, auth, **is_guest**, **guest_token** |
-| `stocks`             | Read-only stock catalog (current_price added by V3, extended to ~50 MOEX tickers by V5, lot_size added by V6) |
+| `stocks`             | Read-only stock catalog (current_price added by V3, extended to ~50 MOEX tickers by V5, lot_size added by V6, company info description/sector/website added by V7) |
 | `portfolio_positions`| User stock holdings                                              |
 | `transactions`      | Buy/sell history                                                 |
 
-**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**, **V5 extended the stocks catalog to ~50 MOEX-compatible instruments (blue chips + second-tier issuers + ETFs); schema unchanged — seed data only**, **V6 added `stocks.lot_size INTEGER NOT NULL` and backfilled real MOEX `LOTSIZE` values for the ~50 catalog tickers**.
+**Migrations**: V1 created all four tables (+ `transaction_type` enum), V2 seeded 6 stocks, V3 added `stocks.current_price NUMERIC(19,4)`, **V4 added `users.is_guest` and `users.guest_token`, made `email/username/password_hash` nullable for guests**, **V5 extended the stocks catalog to ~50 MOEX-compatible instruments (blue chips + second-tier issuers + ETFs); schema unchanged — seed data only**, **V6 added `stocks.lot_size INTEGER NOT NULL` and backfilled real MOEX `LOTSIZE` values for the ~50 catalog tickers**. **V7 added nullable `stocks.description TEXT`, `stocks.sector VARCHAR(100)`, `stocks.website VARCHAR(255)` and backfilled real company info for all ~50 catalog tickers. No `logo_url` column is ever added — the logo path is derived from the ticker by `StockLogoResolver`.**
 
 **Naming**: PostgreSQL snake_case columns mapped to Java camelCase fields via JPA `@Column(name = "...")`.
 
 ## API Conventions
 
 - Base path: `/api/v1/`
-- Public endpoints: `/api/v1/auth/**`, `/api/v1/guest`, `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
+- Public endpoints: `/api/v1/auth/**`, `/api/v1/guest`, `/logos/**` (company SVG logos served as static resources), `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`
 - JWT-protected endpoints: `/api/v1/users/**`, `/api/v1/stocks/**`, `/api/v1/trades/**`, `/api/v1/portfolio`, `/api/v1/account`, `/api/v1/transactions`
 - **Guest access**: all JWT-protected endpoints also accept `X-Guest-Token` header (UUID) for guest users
 - All other endpoints require `Authorization: Bearer <jwt>` or `X-Guest-Token` (enforced via `anyRequest().authenticated()`)
@@ -168,7 +170,7 @@ Managed exclusively by **Flyway**. Never modify `ddl-auto` from `validate`.
 
 ### DTO → Entity Mapping
 
-DTOs contain a static `from(Entity e)` factory method (e.g., `StockResponse.from(stock)`). This is the only place entity → DTO conversion happens.
+DTOs contain a static `from(Entity e)` factory method (e.g., `StockResponse.from(stock)`). This is the only place entity → DTO conversion happens. When a DTO field is **not** persisted (computed/derived), pass it as an extra argument — e.g. `StockResponse.from(stock, logoUrl)` where `logoUrl` is resolved from the ticker by `StockLogoResolver` (path of a bundled SVG in `static/logos/`, `/logos/{ticker}.svg` or `/logos/default.svg` as fallback). No derived field is ever a DB column.
 
 ### Exception Pattern
 
@@ -218,6 +220,7 @@ All error code constants live in `common/web/ErrorCodes.java`:
 | `INVALID_TICKER` | `InvalidTickerException` | 404 |
 | `INVALID_GUEST_TOKEN` | `InvalidGuestTokenException` | 401 |
 | `GUEST_ALREADY_REGISTERED` | `GuestAlreadyRegisteredException` | 409 |
+| `RESOURCE_NOT_FOUND` | `NoResourceFoundException` (missing static resource, e.g. unknown logo path) | 404 |
 | `INTERNAL_ERROR` | catch-all `Exception` | 500 |
 
 Note: most codes are constants in `ErrorCodes.java`, but a few are still inlined
@@ -296,6 +299,8 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
     - `positionsCount = number of current portfolio_positions`
 - **MOEX price flow**: `MoexClient.getMarketSnapshot` fetches the `LAST` price and `LOTSIZE` for a ticker in a single MOEX ISS call (`iss.only=marketdata,securities` — `LOTSIZE` lives in the `securities` block, not `marketdata`); both values are filtered strictly by the configured board (`MarketProperties.boardId`, default `TQBR` — the main T+ board of the Moscow Exchange), with no fallback to other boards, because MOEX returns one row per `(SECID, BOARDID)` pair and values differ across boards (e.g. GAZP: `SMAL` lot = 1, `TQBR` lot = 10); `MarketDataScheduler` (`@Scheduled`, default every 60s) updates `stocks.current_price` via `StockRepository.updateCurrentPrice` and, when MOEX returns a lot size for the board, `stocks.lot_size` via `StockRepository.updateLotSize` (a missing lot size keeps the persisted value — the contract forbids making one up); trade/account/portfolio logic reads `current_price`/`lot_size` from the DB, so it always uses the last value the scheduler persisted
 - Transactions are the source of truth for trade history
+- **Company info**: `stocks.description` / `stocks.sector` / `stocks.website` (added by V7) hold real, hand-authored data for every catalog ticker and are returned verbatim by `StockResponse`. Backend is the single source of company information — the frontend never calls an external company API.
+- **Logos**: images are **never** stored in the DB (no BLOB / Base64 / `logo_url` column). SVG files live in `src/main/resources/static/logos/`, named after the ticker (`SBER.svg` …) plus a `default.svg` fallback; Spring Boot serves them publicly at `/logos/{ticker}.svg`. `StockLogoResolver` scans the directory once at startup, caches the ticker set, and `resolve(ticker)` returns `/logos/{TICKER}.svg` or `/logos/default.svg` with **zero filesystem checks per request**. The result is passed into `StockResponse.from(stock, logoUrl)`. Missing static paths (e.g. `/logos/UNKNOWN.svg` requested directly) are mapped by `GlobalExceptionHandler` to 404 `RESOURCE_NOT_FOUND`.
 
 ## DO / DON'T
 

@@ -18,6 +18,7 @@ public final class ErrorCodes {
     public static final String INVALID_TICKER         = "INVALID_TICKER";
     public static final String INVALID_GUEST_TOKEN     = "INVALID_GUEST_TOKEN";
     public static final String GUEST_ALREADY_REGISTERED = "GUEST_ALREADY_REGISTERED";
+    public static final String RESOURCE_NOT_FOUND      = "RESOURCE_NOT_FOUND";
     public static final String INTERNAL_ERROR          = "INTERNAL_ERROR";
 
     private ErrorCodes() {

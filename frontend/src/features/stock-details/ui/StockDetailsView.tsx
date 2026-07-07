@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, Typography, Paper, Chip, Grid, Button, Skeleton } from '@mui/material';
-import { TrendingUp } from 'lucide-react';
+import { Box, Typography, Paper, Chip, Grid, Button, Skeleton, Link, Avatar } from '@mui/material';
+import { TrendingUp, Globe, Building2 } from 'lucide-react';
 import { Stock } from '@/features/stocks/types/stockTypes';
 import { usePortfolioQuery } from '@/features/portfolio/model/usePortfolioQuery';
 import { formatMoney, formatProfitLoss } from '@/shared/utils/format';
@@ -14,14 +14,30 @@ interface StockDetailsViewProps {
 }
 
 /**
+ * Базовый URL backend, от которого раздаются статические ресурсы (логотипы).
+ * Совпадает с `baseURL` axios-клиента (`apiClient.ts`).
+ */
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+
+/**
+ * Превращает API-relative путь логотипа (`/logos/SBER.svg`, который отдаёт
+ * backend) в абсолютный URL для `<img src>`. Префикс `VITE_API_URL` нужен,
+ * т.к. фронтенд и backend в dev работают на разных портах.
+ */
+function resolveLogoUrl(logoUrl: string): string {
+  return `${API_BASE_URL}${logoUrl}`;
+}
+
+/**
  * Контент страницы детальной информации об акции.
  *
  * Блоки:
- * - Header: компания, тикер, биржа;
+ * - Header: логотип, компания, тикер, биржа, сектор;
  * - Price Block: текущая рыночная цена крупным шрифтом;
  * - User Position: позиция пользователя (если есть) с PnL;
  * - Trading: кнопки Buy/Sell, открывающие существующие диалоги;
- * - Company Information: доступные поля об акции.
+ * - About: описание компании (из backend);
+ * - Company Information: тикер, название, биржа, лотность, сайт.
  *
  * Позиция пользователя берётся через `usePortfolioQuery` (фильтрация по
  * `stockId` локально). PnL уже рассчитан на backend. Buy/Sell переиспользуют
@@ -31,20 +47,43 @@ interface StockDetailsViewProps {
 export default function StockDetailsView({ stock }: StockDetailsViewProps) {
   const { data: positions, isLoading: isPortfolioLoading } = usePortfolioQuery();
   const [tradeMode, setTradeMode] = useState<TradeMode | null>(null);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const closeTrade = () => setTradeMode(null);
   const position = positions?.find((p) => p.stockId === stock.id) ?? null;
+
+  const logoSrc = logoFailed
+    ? resolveLogoUrl('/logos/default.svg')
+    : resolveLogoUrl(stock.logoUrl);
 
   return (
     <Box>
       {/* Header */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {stock.companyName}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Chip label={stock.ticker} color="primary" />
-          <Chip label={stock.exchange} variant="outlined" />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Avatar
+            variant="rounded"
+            src={logoSrc}
+            alt={stock.companyName}
+            onError={() => setLogoFailed(true)}
+            sx={{ width: 64, height: 64, bgcolor: 'background.default', flexShrink: 0 }}
+          />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              {stock.companyName}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={stock.ticker} color="primary" />
+              <Chip label={stock.exchange} variant="outlined" />
+              {stock.sector && (
+                <Chip
+                  icon={<Building2 size={15} />}
+                  label={stock.sector}
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          </Box>
         </Box>
       </Paper>
 
@@ -110,6 +149,16 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
         </Box>
       </Paper>
 
+      {/* About / description */}
+      {stock.description && (
+        <Paper sx={{ p: 3, mt: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            About
+          </Typography>
+          <Typography sx={{ whiteSpace: 'pre-line' }}>{stock.description}</Typography>
+        </Paper>
+      )}
+
       {/* Company Information */}
       <Paper sx={{ p: 3, mt: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -120,6 +169,23 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
           <InfoRow label="Company Name" value={stock.companyName} />
           <InfoRow label="Exchange" value={stock.exchange} />
           <InfoRow label="Lot Size" value={`${stock.lotSize} shares`} />
+          {stock.sector && <InfoRow label="Sector" value={stock.sector} />}
+          {stock.website && (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Website
+              </Typography>
+              <Link
+                href={stock.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}
+              >
+                <Globe size={15} />
+                {stock.website}
+              </Link>
+            </Grid>
+          )}
         </Grid>
       </Paper>
 

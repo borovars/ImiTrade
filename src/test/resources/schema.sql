@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS stocks (
     exchange      VARCHAR(50)  NOT NULL,
     current_price NUMERIC(19,4) NOT NULL,
     lot_size      INTEGER      NOT NULL,
+    description   TEXT,
+    sector        VARCHAR(100),
+    website       VARCHAR(255),
     CONSTRAINT pk_stocks PRIMARY KEY (id),
     CONSTRAINT uk_stocks_ticker UNIQUE (ticker)
 );

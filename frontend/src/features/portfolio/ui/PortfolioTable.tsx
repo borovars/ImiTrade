@@ -45,6 +45,9 @@ export default function PortfolioTable({ positions }: PortfolioTableProps) {
     exchange: '',
     currentPrice: position.currentPrice,
     lotSize: position.lotSize,
+    // Диалог продажи не отображает логотип; подставляем default-плейсхолдер,
+    // т.к. позиция портфеля не несёт полный набор полей Stock.
+    logoUrl: '/logos/default.svg',
   });
 
   return (

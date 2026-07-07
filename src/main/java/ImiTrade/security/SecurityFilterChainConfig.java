@@ -24,7 +24,8 @@ import java.util.List;
  *
  * <p>Rules:
  * <ul>
- *   <li>{@code /api/v1/auth/**} and Swagger/OpenAPI endpoints are public</li>
+ *   <li>{@code /api/v1/auth/**}, the guest endpoint, static {@code /logos/**} and
+ *       Swagger/OpenAPI endpoints are public</li>
  *   <li>every other endpoint requires an authenticated user</li>
  *   <li>no HTTP session is created (fully stateless)</li>
  *   <li>{@link JwtAuthenticationFilter} runs right before the standard
@@ -40,6 +41,8 @@ public class SecurityFilterChainConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
             "/api/v1/guest",
+            // Public static resources (company logos served under /logos/**)
+            "/logos/**",
             // Swagger / OpenAPI
             "/swagger-ui.html",
             "/swagger-ui/**",
