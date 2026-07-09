@@ -13,6 +13,7 @@ import { useStockHistoryQuery } from '../model/useStockHistoryQuery';
 import { getStockHistory } from '../api/stockHistoryApi';
 import type { HistoryPeriodCode, HistoryPoint } from '../model/historyTypes';
 import { StateError, TableSkeleton } from '@/shared/components';
+import { formatDateTime, formatMoney } from '@/shared/utils/format';
 import { AXIS_TEXT_COLOR, chartBaseOptions, areaSeriesOptions } from './chart/chartTheme';
 import {
   type ViewportState,
@@ -40,6 +41,12 @@ interface ChartPoint {
 }
 
 const CHART_HEIGHT_PX = 380;
+/**
+ * Минимальный зазор (px) между подписью текущей цены и min/max на оси Y. При
+ * сближении меток подпись current скрывается — это убирает дребезг/смену меток
+ * местами, когда текущая цена почти равна min или max.
+ */
+const MIN_LABEL_GAP_PX = 22;
 
 /**
  * Профессиональный интерактивный график цены акции (Area, только close).
@@ -64,6 +71,10 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  // Плавающее окно tooltip (дата + цена под курсором). Создаётся один раз и
+  // позиционируется/скрывается через прямую запись в DOM — движение мыши не
+  // должно перерисовывать React (см. readme: «пишется в DOM напрямую, без re-render»).
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   // Price lines для min/max видимого диапазона (третья метка — текущая цена —
   // рисуется самой серией через `priceLineVisible`). Пересоздаются при смене
   // видимого диапазона, чтобы на оси цены всегда было ровно 3 значения.
@@ -104,9 +115,54 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
     chartRef.current = chart;
     seriesRef.current = series;
 
-    // Пересчёт min/max price lines + проверка lazy-подгрузки при любом движении
-    // видимого диапазона (панорамирование, зум, смена данных). Tooltip убран —
-    // crosshair-подписка не нужна.
+    // Плавающее окно tooltip: дата + цена под курсором. Узел живёт внутри
+    // контейнера графика и управляется напрямую через DOM (без re-render).
+    ensureTooltipStyle(container.ownerDocument);
+    const tooltip = container.ownerDocument.createElement('div');
+    tooltip.setAttribute('data-chart-tooltip', '');
+    Object.assign(tooltip.style, tooltipStyle as CSSStyleDeclaration);
+    container.appendChild(tooltip);
+    tooltipRef.current = tooltip;
+
+    // Подписка на НАТИВНОЕ движение мыши, а не на crosshair-события библиотеки:
+    // crosshair срабатывает только когда под курсором есть свеча, и между свечами
+    // окно «замирало». Нативный mousemove стреляет на каждый пиксель, поэтому окно
+    // постоянно следует за курсором. По X-координате через `coordinateToTime`
+    // получаем ближайшую точку данных и её цену из кэша.
+    const onMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      // За пределами холста (например, над осью) — скрываем.
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+        tooltip.style.display = 'none';
+        return;
+      }
+      // Ближайшая точка данных к X курсора.
+      const time = chart.timeScale().coordinateToTime(x);
+      if (time === null) {
+        tooltip.style.display = 'none';
+        return;
+      }
+      const value = merged.get(time as number);
+      if (value === undefined) {
+        tooltip.style.display = 'none';
+        return;
+      }
+      tooltip.innerHTML =
+        `<div><span class="cct-label">Date:</span> ${formatDateTime(new Date((time as number) * 1000))}</div>` +
+        `<div><span class="cct-label">Price:</span> ${formatMoney(value)}</div>`;
+      positionTooltip(tooltip, x, y, container);
+      tooltip.style.display = 'block';
+    };
+    const onLeave = () => {
+      tooltip.style.display = 'none';
+    };
+    container.addEventListener('mousemove', onMove);
+    container.addEventListener('mouseleave', onLeave);
+
+    // Пересчёт min/max/current price lines + проверка lazy-подгрузки при любом
+    // движении видимого диапазона (панорамирование, зум, смена данных).
     const debouncedLazy = debounce(() => maybeTriggerLazyLoad(), 300);
     const onRangeChange = () => {
       updatePriceLines();
@@ -115,8 +171,12 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
 
     return () => {
+      container.removeEventListener('mousemove', onMove);
+      container.removeEventListener('mouseleave', onLeave);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
       debouncedLazy.cancel();
+      tooltip.remove();
+      tooltipRef.current = null;
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -208,11 +268,23 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
   // ───────────────────────── Внутренние хелперы (стабильные) ─────────────────────────
 
   /**
-   * Пересчитывает две price lines (min и max видимого диапазона) и обновляет их.
-   * Третье значение на оси цены — текущая цена (последняя свеча) — рисуется
-   * самой серией (`priceLineVisible: true` в теме). Линии невидимы на холсте
-   * (`lineVisible: false`), видны только их подписи на оси цены — чтобы на оси
-   * было ровно 3 значения: min / max / current.
+   * Пересчитывает ценовые линии оси Y: min (range.from), max (range.to) и
+   * текущую цену последней свечи. Все три рисуются единым путём — `createPriceLine`
+   * с `lineVisible: false` (на холсте линий нет, видны только подписи-«таблетки»
+   * на оси). Сама линия текущей цены у серии отключена в теме (`priceLineVisible:
+   * false`) — раньше именно конфликт нативной линии серии и кастомных min/max
+   * давал «дребезг» и смену меток местами при current≈min/max.
+   *
+   * Приоритет current (текущая цена «на переднем плане»): она рисуется ВСЕГДА.
+   * min/max рисуются по реальным позициям, но если подпись min или max подходит
+   * к current ближе `MIN_LABEL_GAP_PX`, эту крайнюю метку пропускаем — current
+   * перекрывает её (а не расталкивается с ней встроенным overlap-резолвером,
+   * который даёт «прыжки» меток). Так при current≈max на оси видно current и min;
+   * при current≈min — current и max; в обычном случае — все три.
+   *
+   * min всегда ниже max по позиции (гарантируется самой шкалой), current — по
+   * реальной цене. Текущая цена добавляется ПОСЛЕ min/max, поэтому в порядке
+   * отрисовки price lines она поверх них (визуальный «передний план»).
    *
    * Определён раньше `mergeData` (который его вызывает), чтобы избежать
    * использования до объявления (TDZ).
@@ -230,6 +302,16 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
     }
     // Удаляем старые линии перед добавлением новых (значения изменились).
     for (const pl of priceLinesRef.current) series.removePriceLine(pl);
+
+    // Текущая цена = цена последней свечи (самая свежая точка кэша).
+    const merged = mergedRef.current;
+    let currentPrice: number | null = null;
+    if (merged.size > 0) {
+      let latestTs = 0;
+      for (const ts of merged.keys()) if (ts > latestTs) latestTs = ts;
+      currentPrice = merged.get(latestTs) ?? null;
+    }
+
     // canvas-рендерер lightweight-charts не понимает `transparent` и рисует фон
     // подписи чёрным, если цвет не задан. Поэтому `axisLabelColor = '#ffffff'`:
     // подпись рисуется как белый «пилл» (фон совпадает с MUI Paper), поверх —
@@ -241,10 +323,27 @@ export default function StockPriceChart({ ticker }: StockPriceChartProps) {
       axisLabelColor: '#ffffff',
       axisLabelTextColor: AXIS_TEXT_COLOR,
     };
-    priceLinesRef.current = [
-      series.createPriceLine({ ...opts, price: range.from }),
-      series.createPriceLine({ ...opts, price: range.to }),
-    ];
+
+    // Координаты для проверки коллизий. Текущая цена «на переднем плане»: её
+    // метка рисуется всегда, а min/max пропускаются, если налезают на current.
+    const coordMin = series.priceToCoordinate(range.from);
+    const coordMax = series.priceToCoordinate(range.to);
+    const coordCur = currentPrice !== null ? series.priceToCoordinate(currentPrice) : null;
+    const tooClose = (a: number | null, b: number | null) => a !== null && b !== null && Math.abs(a - b) < MIN_LABEL_GAP_PX;
+
+    // min/max — на «заднем плане»: рисуются, только если не перекрыты current.
+    const lines: ReturnType<typeof series.createPriceLine>[] = [];
+    if (coordCur === null || coordMin === null || !tooClose(coordMin, coordCur)) {
+      lines.push(series.createPriceLine({ ...opts, price: range.from }));
+    }
+    if (coordCur === null || coordMax === null || !tooClose(coordMax, coordCur)) {
+      lines.push(series.createPriceLine({ ...opts, price: range.to }));
+    }
+    // Текущая цена — всегда (добавляется последней → поверх min/max).
+    if (currentPrice !== null && coordCur !== null) {
+      lines.push(series.createPriceLine({ ...opts, price: currentPrice }));
+    }
+    priceLinesRef.current = lines;
   }, []);
 
   /** Выгружает кэш в серию отсортированным массивом (time монотонно растёт). */
@@ -467,6 +566,79 @@ function Overlay({ children }: { children: React.ReactNode }) {
 }
 
 // ───────────────────────── Чистые хелперы (без состояния) ─────────────────────────
+
+/**
+ * Инлайн-стиль плавающего tooltip (дата + цена под курсором). Применяется через
+ * `Object.assign(... as CSSStyleDeclaration)`, т.к. узел создаётся вне React и
+ * управляется напрямую в DOM. Выглядит как компактный «пилл» поверх графика.
+ * БЕЗ `transition` — плавность движения обеспечивается самим mousemove (окно
+ * двигается мгновенно за курсором каждый кадр, без задержки/телепортации).
+ */
+const tooltipStyle: Partial<CSSStyleDeclaration> = {
+  position: 'absolute',
+  zIndex: '4',
+  display: 'none',
+  pointerEvents: 'none',
+  whiteSpace: 'nowrap',
+  padding: '6px 10px',
+  borderRadius: '6px',
+  background: 'rgba(255,255,255,0.95)',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  border: '1px solid rgba(0,0,0,0.08)',
+  fontFamily: 'inherit',
+  fontSize: '12px',
+  lineHeight: '1.5',
+  color: '#111111',
+  transform: 'translate(-50%, calc(-100% - 12px))',
+};
+
+/**
+ * CSS для жирной подписи «Date:»/«Price:» внутри tooltip. Инъекция через
+ * <style> — узел tooltip живёт вне React и управляется напрямую в DOM.
+ * Один тег стиля на документ, повторно не добавляется.
+ */
+const TOOLTIP_STYLE_ID = 'imitrade-chart-tooltip-style';
+function ensureTooltipStyle(document: Document) {
+  if (document.getElementById(TOOLTIP_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = TOOLTIP_STYLE_ID;
+  style.textContent = '[data-chart-tooltip] .cct-label{font-weight:700}';
+  document.head.appendChild(style);
+}
+
+/**
+ * Ставит tooltip рядом с курсором и не даёт ему вылезти за пределы контейнера.
+ * Окно позиционируется над точкой курсора (transform в `tooltipStyle` уже
+ * центрирует его по X и приподнимает над курсором по Y). Здесь корректируем
+ * только «X у правого края» (окно уходит влево) и «Y у верхнего края» (окно
+ * уходит вниз под курсор), чтобы оно всегда оставалось в кадре.
+ */
+function positionTooltip(
+  tooltip: HTMLDivElement,
+  cursorX: number,
+  cursorY: number,
+  container: HTMLElement
+) {
+  const cw = container.clientWidth;
+  const tw = tooltip.offsetWidth;
+  const th = tooltip.offsetHeight;
+
+  // По умолчанию окно центрируется над курсором (см. transform в tooltipStyle).
+  let left = cursorX;
+  let flipDown = false;
+
+  // Не помещается справа — прижимаем к правому краю с отступом.
+  if (cursorX + tw / 2 > cw - 8) left = cw - 8 - tw / 2;
+  // Не помещается слева — прижимаем к левому краю с отступом.
+  else if (cursorX - tw / 2 < 8) left = 8 + tw / 2;
+
+  // Сверху над курсором не хватает места — показываем окно снизу под курсором.
+  if (cursorY - th - 12 < 8) flipDown = true;
+
+  tooltip.style.left = `${Math.max(8, Math.min(left, cw - 8))}px`;
+  tooltip.style.top = `${flipDown ? cursorY + 16 : cursorY}px`;
+  tooltip.style.transform = flipDown ? 'translate(-50%, 0)' : 'translate(-50%, calc(-100% - 12px))';
+}
 
 /** Парсит ISO-строку времени из DTO в UNIX-секунды. */
 function toTimestamp(iso: string): number {

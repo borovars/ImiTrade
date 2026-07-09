@@ -19,8 +19,17 @@ import type { DeepPartial, ChartOptions, AreaSeriesOptions } from 'lightweight-c
 export const CHART_LINE_COLOR = '#3dba8d';
 /** Цвет текста осей — чёрный (был серый `#6b7280`). */
 export const AXIS_TEXT_COLOR = '#111111';
-/** Крупный шрифт осей (был дефолтный 12px, затем 14px). */
-export const AXIS_FONT_SIZE = 24;
+/** Крупный шрифт осей (был дефолтный 12px, затем 14px, 24px). */
+export const AXIS_FONT_SIZE = 20;
+/**
+ * Семейство шрифта осей. ВАЖНО: НЕ `'inherit'` — lightweight-charts собирает
+ * canvas-строку шрифта как `` `${size}px ${family}` `` (`makeFont`), а Canvas 2D
+ * API не понимает CSS-ключевое слово `inherit` в свойстве `font`, считает строку
+ * невалидной и молча откатывается к дефолту canvas (~12px). Из-за этого любое
+ * значение `fontSize` игнорировалось — берём реальное системное семейство
+ * (совпадает с библиотечным дефолтом `defaultFontFamily`).
+ */
+export const AXIS_FONT_FAMILY = `-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif`;
 
 /**
  * Базовые опции графика (`createChart`): фон, отключённая сетка, отключённый
@@ -32,7 +41,7 @@ export const chartBaseOptions: DeepPartial<ChartOptions> = {
     background: { color: 'transparent' },
     textColor: AXIS_TEXT_COLOR,
     fontSize: AXIS_FONT_SIZE,
-    fontFamily: 'inherit',
+    fontFamily: AXIS_FONT_FAMILY,
   },
   // Чистый фон: никакой сетки.
   grid: {
@@ -78,10 +87,14 @@ export const chartBaseOptions: DeepPartial<ChartOptions> = {
     timeVisible: true,
     secondsVisible: false,
   },
+  // Crosshair-движок оставляем включённым (mode=0, Normal — свободное движение),
+  // но полностью прячем его визуал: пунктирные линии и подписи на осях при
+  // наведении не рисуются. Сами события crosshair (subscribeCrosshairMove) всё
+  // равно нужны — по ним строится плавающее окно tooltip в StockPriceChart.
   crosshair: {
     mode: 0, // CrosshairMode.Normal — свободное движение
-    vertLine: { color: 'rgba(61,186,141,0.4)', labelBackgroundColor: CHART_LINE_COLOR },
-    horzLine: { color: 'rgba(61,186,141,0.4)', labelBackgroundColor: CHART_LINE_COLOR },
+    vertLine: { visible: false, labelVisible: false },
+    horzLine: { visible: false, labelVisible: false },
   },
   localization: {
     // Полностью подавляем авто-метки ценовой шкалы (возвращаем пустые строки).
@@ -96,20 +109,19 @@ export const chartBaseOptions: DeepPartial<ChartOptions> = {
  * Опции Area-серии: линия цвета `#3dba8d` + прозрачный вертикальный градиент
  * под ней (сверху полупрозрачный, к оси X — полностью прозрачный).
  *
- * `priceLineVisible: true` — показывает цену последней свечи как метку на оси
- * цены (это и есть «текущая цена»); сама линия скрыта через `priceLineStyle`
- * (= 0, LineType.Simple невидим при width… нет — см. ниже). Линию текущей цены
- * делаем тонкой/незаметной, оставляя подпись на оси.
+ * `priceLineVisible: false` — нативную ценовую линию последней свечи (та самая
+ * «чёрная пунктирная линия» через весь график) полностью отключаем. Подпись
+ * текущей цены на оси Y рисуется отдельной ценовой линией (`lineVisible: false`)
+ * в `updatePriceLines` — единый рендер-путь с min/max исключает дребезг меток
+ * при наложении current≈min/max.
  */
 export const areaSeriesOptions: DeepPartial<AreaSeriesOptions> = {
   lineColor: CHART_LINE_COLOR,
-  lineWidth: 2,
+  lineWidth: 3,
   lineType: 0, // LineType.Simple — прямые отрезки, острые изломы в точках данных
   topColor: 'rgba(61,186,141,0.35)',
   bottomColor: 'rgba(61,186,141,0.0)',
-  // Подпись текущей (последней) цены на оси цены.
-  priceLineVisible: true,
-  priceLineColor: 'rgba(17,17,17,0.35)',
-  priceLineWidth: 1,
-  priceLineStyle: 2, // LineStyle.Dashed
+  // Нативную линию + подпись текущей цены отключаем — подпись рисуем сами
+  // (см. updatePriceLines в StockPriceChart), чтобы убрать пунктир и дребезг.
+  priceLineVisible: false,
 };
