@@ -13,6 +13,11 @@ export const queryKeys = {
   /** Ключ конкретной акции по тикеру. Вкладывается в namespace `stocks`,
    *  поэтому инвалидация `queryKeys.stocks` (prefix) захватит и detail-запрос. */
   stockDetails: (ticker: string) => ['stocks', 'detail', ticker] as const,
+  /** История цены акции для графика. Период и левая граница (`fromIso`) —
+   *  часть ключа: разные диапазоны кэшируются независимо, а инвалидация
+   *  префикса `stocks` захватит и их. */
+  stockHistory: (ticker: string, period: string, fromIso: string) =>
+    ['stocks', 'history', ticker, period, fromIso] as const,
   portfolio: ['portfolio'] as const,
   transactions: ['transactions'] as const,
 };

@@ -6,6 +6,7 @@ import { usePortfolioQuery } from '@/features/portfolio/model/usePortfolioQuery'
 import { formatMoney, formatProfitLoss } from '@/shared/utils/format';
 import BuyStockDialog from '@/features/trading/ui/BuyStockDialog';
 import SellStockDialog from '@/features/trading/ui/SellStockDialog';
+import StockPriceChart from './StockPriceChart';
 
 type TradeMode = 'buy' | 'sell';
 
@@ -36,6 +37,7 @@ function resolveLogoUrl(logoUrl: string): string {
  * - Price Block: текущая рыночная цена крупным шрифтом;
  * - User Position: позиция пользователя (если есть) с PnL;
  * - Trading: кнопки Buy/Sell, открывающие существующие диалоги;
+ * - Price Chart: интерактивный график истории цены (StockPriceChart);
  * - About: описание компании (из backend);
  * - Company Information: тикер, название, биржа, лотность, сайт.
  *
@@ -147,6 +149,16 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
             Sell
           </Button>
         </Box>
+      </Paper>
+
+      {/* Price Chart: линейный график истории цены (lightweight-charts).
+          key={ticker} гарантирует полный ремонт и сброс viewport'а при смене
+          акции — графики разных тикеров полностью независимы. */}
+      <Paper sx={{ p: 2, mt: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 1 }}>
+          Price History
+        </Typography>
+        <StockPriceChart key={stock.ticker} ticker={stock.ticker} />
       </Paper>
 
       {/* About / description */}

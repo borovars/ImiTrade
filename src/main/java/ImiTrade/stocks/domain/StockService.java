@@ -50,4 +50,20 @@ public class StockService {
         return stockRepository.findById(id)
                 .orElseThrow(() -> new StockNotFoundException(id));
     }
+
+    /**
+     * Looks up a stock by ticker (case-insensitive exact match).
+     *
+     * <p>Used to validate a path-variable ticker before resolving derived data
+     * (e.g. price history) — the same case-insensitive semantics as the
+     * {@code ?ticker=} list filter.
+     *
+     * @throws StockNotFoundException if no stock with the given ticker exists
+     */
+    @Transactional(readOnly = true)
+    public Stock getStockByTicker(String ticker) {
+        Specification<Stock> spec = StockSpecifications.hasTickerIgnoreCase(ticker);
+        return stockRepository.findOne(spec)
+                .orElseThrow(() -> new StockNotFoundException(ticker));
+    }
 }

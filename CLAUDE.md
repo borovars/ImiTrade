@@ -16,6 +16,7 @@ Current state:
 - **Lot-based trading** (lot size per stock, synced from MOEX; trades are placed in lots, shares remain the source of truth) ✓
 - **Guest Mode** (create guest, X-Guest-Token auth, convert to registered user with bonus) ✓
 - **Company profile** (description, sector, website, logoUrl derived from ticker) ✓
+- **Stock price history** (endpoint returns OHLCV candles from MOEX ISS, not persisted; the frontend renders a linear close-price chart from the `close` field — see `frontend/src/features/stock-details/ui/StockPriceChart.tsx`) ✓
 
 Main business entities:
 - User
@@ -60,11 +61,13 @@ src/main/java/ImiTrade/
 │   ├── web/UserController.java
 │   ├── domain/UserService.java, User.java, UserRepository.java
 │   └── (no dto — reuses auth dto CurrentUserResponse)
-├── stocks/                      # Stock catalog (read-only)
-│   ├── web/StockController.java
+├── stocks/                      # Stock catalog (read-only) + price history
+│   ├── web/StockController.java, StockHistoryController.java  # GET /stocks, /stocks/{id}, /stocks/{ticker}/history
 │   ├── domain/StockService.java, Stock.java, StockRepository.java, StockSpecifications.java,
 │   │           StockLogoResolver.java  # Derives /logos/{ticker}.svg (cached at startup, no DB column)
-│   └── dto/StockResponse.java
+│   ├── service/StockHistoryService.java, HistoryPeriod.java   # Price history assembly + period→interval mapping
+│   ├── integration/moex/MoexHistoryClient.java, MoexHistoryMapper.java, dto/   # MOEX candles.json client + DTOs
+│   └── dto/StockResponse.java, CandleResponse.java
 ├── transaction/                 # Transaction aggregate (entity + repo + enum + history read)
 │   ├── web/TransactionController.java  # GET /api/v1/transactions (filterable, paginated)
 │   ├── domain/TransactionService.java, Transaction.java, TransactionRepository.java,
@@ -240,7 +243,7 @@ adding a constant in `ErrorCodes` for new codes.
     - **user**: `UserServiceTest`
     - **guest**: `GuestServiceTest`, `GuestIntegrationTest`, `GuestFlowIntegrationTest`
     - **security**: `JwtServiceTest`, `SecurityAccessTest`
-    - **stocks**: `StockServiceTest`, `StockRepositoryTest`, `StockControllerTest`, `StockSecurityTest`
+    - **stocks**: `StockServiceTest`, `StockRepositoryTest`, `StockControllerTest`, `StockSecurityTest`, `StockHistoryServiceTest`, `HistoryPeriodTest`, `MoexHistoryMapperTest`
     - **trading**: `TradeServiceTest`, `TradeIntegrationTest`, `TradeSecurityTest`
     - **portfolio**: `PortfolioPositionRepositoryTest`, `PortfolioServiceTest`, `PortfolioControllerTest`, `PortfolioIntegrationTest`, `PortfolioSecurityTest`
     - **account**: `AccountServiceTest`, `AccountControllerTest`, `AccountSecurityTest`
@@ -301,6 +304,7 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 - Transactions are the source of truth for trade history
 - **Company info**: `stocks.description` / `stocks.sector` / `stocks.website` (added by V7) hold real, hand-authored data for every catalog ticker and are returned verbatim by `StockResponse`. Backend is the single source of company information — the frontend never calls an external company API.
 - **Logos**: images are **never** stored in the DB (no BLOB / Base64 / `logo_url` column). SVG files live in `src/main/resources/static/logos/`, named after the ticker (`SBER.svg` …) plus a `default.svg` fallback; Spring Boot serves them publicly at `/logos/{ticker}.svg`. `StockLogoResolver` scans the directory once at startup, caches the ticker set, and `resolve(ticker)` returns `/logos/{TICKER}.svg` or `/logos/default.svg` with **zero filesystem checks per request**. The result is passed into `StockResponse.from(stock, logoUrl)`. Missing static paths (e.g. `/logos/UNKNOWN.svg` requested directly) are mapped by `GlobalExceptionHandler` to 404 `RESOURCE_NOT_FOUND`.
+- **Price history (candles)**: `GET /api/v1/stocks/{ticker}/history?period=1D|1W|1M|1Y` returns OHLCV candles sourced live from MOEX ISS `candles.json` — **never persisted** (MOEX is the single source; the scheduler-driven `current_price`/`lot_size` flow is untouched). Model «T-Investments / MOEX»: each period is both a candle interval and a default lookback — `D1`=1D period, daily candles (MOEX `interval=24`), lookback 3 months; `W1`=1W, weekly candles (`interval=7`), 5 months; `M1`=1M, monthly candles (`interval=31`), 3 years; `Y1`=1Y, quarterly candles (`interval=4`), 10 years. `3M` was removed (1W/1M cover those ranges). The ticker is validated against the catalog first (`StockService.getStockByTicker` → 404 `STOCK_NOT_FOUND` for unknown tickers), then `StockHistoryService` computes the date range from `HistoryPeriod`; optional `from` (ISO `yyyy-MM-dd`) shifts the range start into the past for incremental scroll-to-past **keeping the same interval** (so the frontend always merges a single bucket size). `MoexHistoryClient` calls `.../securities/{ticker}/candles.json` with `iss.only=candles` and a fixed column order `begin,end,open,close,high,low,value,volume` (positional `@JsonFormat(ARRAY)` decode, same pattern as `MoexMarketDataRow`), and `MoexHistoryMapper` converts MSK `begin` → UTC `Instant` (fixed `UTC+3`, no DST), drops empty buckets (null OHLC) and sorts ascending. Network/MOEX errors map to `MarketDataUnavailableException` (503); no partial data. The frontend **never** calls MOEX directly — only this endpoint.
 
 ## DO / DON'T
 
