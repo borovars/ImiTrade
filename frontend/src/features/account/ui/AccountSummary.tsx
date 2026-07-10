@@ -57,12 +57,12 @@ export default function AccountSummary({
 
   if (isError) {
     return (
-      <StateError title="Failed to load account data" error={error} onRetry={refetch} />
+      <StateError title="Не удалось загрузить данные аккаунта" error={error} onRetry={refetch} />
     );
   }
 
   if (!data) {
-    return <StateEmpty title="No account data available" />;
+    return <StateEmpty title="Нет данных по аккаунту" />;
   }
 
   const profitLoss = formatProfitLoss(data.profitLoss);
@@ -72,21 +72,21 @@ export default function AccountSummary({
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<Wallet size={24} />}
-          label="Balance"
+          label="Баланс"
           value={formatMoney(data.balance)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<Briefcase size={24} />}
-          label="Portfolio Value"
+          label="Стоимость портфеля"
           value={formatMoney(data.portfolioValue)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={data.profitLoss >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-          label="Profit / Loss"
+          label="Прибыль / Убыток"
           value={profitLoss.text}
           color={profitLoss.color}
         />
@@ -94,7 +94,7 @@ export default function AccountSummary({
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<Layers size={24} />}
-          label="Positions"
+          label="Позиции"
           value={String(data.positionsCount)}
         />
       </Grid>

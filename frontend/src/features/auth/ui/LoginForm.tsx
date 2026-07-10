@@ -61,7 +61,7 @@ export default function LoginForm({ onSuccess, onBack }: LoginFormProps) {
           {...register('email')}
         />
         <TextField
-          label="Password"
+          label="Пароль"
           type="password"
           autoComplete="current-password"
           fullWidth
@@ -78,15 +78,15 @@ export default function LoginForm({ onSuccess, onBack }: LoginFormProps) {
           fullWidth
           loading={isPending}
         >
-          Sign In
+          Войти
         </Button>
         <Button onClick={handleBack} size="large" fullWidth disabled={isPending}>
-          Back
+          Назад
         </Button>
         <Divider />
         <Box sx={{ textAlign: 'center' }}>
           <MuiLink component={RouterLink} to="/register" underline="hover">
-            Don&apos;t have an account? Create one
+            Нет аккаунта? Создать
           </MuiLink>
         </Box>
       </Stack>

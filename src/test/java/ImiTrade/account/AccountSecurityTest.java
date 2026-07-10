@@ -74,9 +74,9 @@ class AccountSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("accountuser"))
                 .andExpect(jsonPath("$.email").value(EMAIL))
-                .andExpect(jsonPath("$.balance").value(500000.00))
+                .andExpect(jsonPath("$.balance").value(25000.00))
                 .andExpect(jsonPath("$.portfolioValue").value(0.00))
-                .andExpect(jsonPath("$.totalAssets").value(500000.00))
+                .andExpect(jsonPath("$.totalAssets").value(25000.00))
                 .andExpect(jsonPath("$.profitLoss").value(0.00))
                 .andExpect(jsonPath("$.positionsCount").value(0));
     }
@@ -96,13 +96,13 @@ class AccountSecurityTest {
 
         // portfolioValue = 215.1000*10 = 2151.0000
         // profitLoss     = (215.1000-210.5000)*10 = 46.0000
-        // totalAssets    = 500000.0000 + 2151.0000 = 502151.0000
+        // totalAssets    = 25000.0000 + 2151.0000 = 27151.0000
         mockMvc.perform(get("/api/v1/account")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.portfolioValue").value(2151.00))
                 .andExpect(jsonPath("$.profitLoss").value(46.00))
-                .andExpect(jsonPath("$.totalAssets").value(502151.00))
+                .andExpect(jsonPath("$.totalAssets").value(27151.00))
                 .andExpect(jsonPath("$.positionsCount").value(1));
     }
 

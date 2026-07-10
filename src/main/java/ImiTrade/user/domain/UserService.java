@@ -27,14 +27,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
 
-    /** Virtual money credited to every newly registered user (must not be changed). */
-    public static final BigDecimal INITIAL_BALANCE = new BigDecimal("500000.0000");
-
     /** Virtual money credited to a newly created guest. */
-    public static final BigDecimal GUEST_INITIAL_BALANCE = new BigDecimal("100000.0000");
+    public static final BigDecimal GUEST_INITIAL_BALANCE = new BigDecimal("5000.0000");
 
     /** Registration bonus for a guest who converts to a registered user. */
-    public static final BigDecimal GUEST_REGISTRATION_BONUS = new BigDecimal("400000.0000");
+    public static final BigDecimal GUEST_REGISTRATION_BONUS = new BigDecimal("20000.0000");
+
+    /**
+     * Virtual money credited on direct registration (no guest token). Derived as
+     * {@code GUEST_INITIAL_BALANCE + GUEST_REGISTRATION_BONUS} so a user who registers
+     * directly ends up with the same balance as one who converts from a guest.
+     */
+    public static final BigDecimal INITIAL_BALANCE = GUEST_INITIAL_BALANCE.add(GUEST_REGISTRATION_BONUS);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;

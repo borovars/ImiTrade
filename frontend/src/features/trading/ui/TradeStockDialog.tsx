@@ -97,7 +97,7 @@ export default function TradeStockDialog({
               }}
             >
               <Typography variant="body2" color="text.secondary">
-                Current price
+                Текущая цена
               </Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 {formatMoney(stock.currentPrice)}
@@ -105,21 +105,21 @@ export default function TradeStockDialog({
             </Box>
 
             <TextField
-              label="Lots"
+              label="Лоты"
               type="number"
               autoFocus
               fullWidth
               error={!!errors.lots}
-              helperText={errors.lots?.message ?? `1 lot = ${stock.lotSize} shares`}
+              helperText={errors.lots?.message ?? `1 лот = ${stock.lotSize} акций`}
               inputProps={{ min: 1, step: 1 }}
               {...register('lots')}
             />
 
             {shares > 0 && (
               <Typography variant="body2" color="text.secondary">
-                You are {actionLabel.toLowerCase()}ing:{' '}
+                {actionLabel === 'Купить' ? 'Вы покупаете:' : 'Вы продаёте:'}{' '}
                 <Typography component="span" sx={{ fontWeight: 600 }}>
-                  {shares} shares
+                  {shares} акций
                 </Typography>
               </Typography>
             )}
@@ -133,7 +133,7 @@ export default function TradeStockDialog({
               }}
             >
               <Typography variant="body2" color="text.secondary">
-                Estimated total
+                Итоговая сумма
               </Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 {formatMoney(total)}
@@ -143,7 +143,7 @@ export default function TradeStockDialog({
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} disabled={isPending}>
-            Cancel
+            Отмена
           </Button>
           <Button
             type="submit"

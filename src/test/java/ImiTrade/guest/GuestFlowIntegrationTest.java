@@ -59,11 +59,11 @@ class GuestFlowIntegrationTest extends PostgresTestBase {
         String guestToken = objectMapper.readTree(guestResponse).get("guestToken").asText();
         Long guestUserId = userRepository.findByGuestToken(java.util.UUID.fromString(guestToken)).orElseThrow().getId();
 
-        // 2. Account summary as guest (balance = 100000)
+        // 2. Account summary as guest (balance = 5000)
         mockMvc.perform(get("/api/v1/account")
                         .header("X-Guest-Token", guestToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(100000.0))
+                .andExpect(jsonPath("$.balance").value(5000.0))
                 .andExpect(jsonPath("$.positionsCount").value(0));
 
         // 3. Buy 10 shares of SBER (id=1, current_price=310.5000 from V3)
@@ -105,18 +105,18 @@ class GuestFlowIntegrationTest extends PostgresTestBase {
         String jwt = objectMapper.readTree(registerResult.getResponse().getContentAsString())
                 .get("token").asText();
 
-        // 7. Verify user is now registered with bonus (100000 - 3105 + 400000 = 496895)
+        // 7. Verify user is now registered with bonus (5000 - 3105 + 20000 = 21895)
         User registered = userRepository.findByEmail("alice@example.com").orElseThrow();
         assertThat(registered.getIsGuest()).isFalse();
         assertThat(registered.getGuestToken()).isNull();
-        assertThat(registered.getBalance()).isEqualByComparingTo(new BigDecimal("496895.0000"));
+        assertThat(registered.getBalance()).isEqualByComparingTo(new BigDecimal("21895.0000"));
         assertThat(registered.getId()).isEqualTo(guestUserId); // same user
 
         // 8. Account summary with JWT still shows the portfolio and correct balance
         mockMvc.perform(get("/api/v1/account")
                         .header("Authorization", "Bearer " + jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(496895.0))
+                .andExpect(jsonPath("$.balance").value(21895.0))
                 .andExpect(jsonPath("$.positionsCount").value(1));
 
         // 9. Portfolio with JWT preserved

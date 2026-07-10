@@ -65,8 +65,8 @@ class AuthIntegrationTest {
 
         User saved = userRepository.findByEmail("alice@example.com").orElseThrow();
         assertThat(saved.getUsername()).isEqualTo("alice");
-        // business rule: initial balance = 500000.00 (must not change)
-        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000"));
+        // business rule: initial balance = 25000.00 (must not change)
+        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("25000.0000"));
     }
 
     @Test
@@ -78,7 +78,7 @@ class AuthIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         String guestToken = objectMapper.readTree(guestResponse).get("guestToken").asText();
         BigDecimal guestBalance = new BigDecimal(objectMapper.readTree(guestResponse).get("balance").asText());
-        assertThat(guestBalance).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(guestBalance).isEqualByComparingTo(new BigDecimal("5000.0000"));
 
         // 2. buy a stock to create portfolio + transactions
         // (we skip trading here to keep the test focused; balance check is enough)
@@ -101,7 +101,7 @@ class AuthIntegrationTest {
         assertThat(saved.getUsername()).isEqualTo("alice");
         assertThat(saved.getIsGuest()).isFalse();
         assertThat(saved.getGuestToken()).isNull();
-        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000"));
+        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("25000.0000"));
     }
 
     @Test

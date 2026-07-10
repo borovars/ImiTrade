@@ -38,7 +38,7 @@ public class AuthController {
     private final AuthService authService;
 
     @Operation(summary = "Register a new user",
-            description = "Creates a new user with the initial balance of 500000.00 and returns a JWT.")
+            description = "Creates a new user with the initial balance of 25000.00 and returns a JWT.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User registered",
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))),

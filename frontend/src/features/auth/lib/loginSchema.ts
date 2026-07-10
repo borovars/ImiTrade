@@ -8,8 +8,8 @@ import { z } from 'zod';
  * ошибся пользователь, см. `AuthService.login`).
  */
 export const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().min(1, 'Введите email').email('Некорректный email'),
+  password: z.string().min(1, 'Введите пароль'),
 });
 
 export type LoginForm = z.infer<typeof loginSchema>;

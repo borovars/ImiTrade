@@ -41,7 +41,7 @@ class StockServiceTest {
         Page<Stock> returned = new PageImpl<>(List.of(sber), pageable, 1);
         when(stockRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(returned);
 
-        Page<Stock> result = stockService.getStocks("SBER", null, pageable);
+        Page<Stock> result = stockService.getStocks("SBER", null, null, pageable);
 
         assertThat(result.getContent()).containsExactly(sber);
         verify(stockRepository).findAll(any(Specification.class), eq(pageable));
@@ -55,7 +55,7 @@ class StockServiceTest {
         Page<Stock> returned = new PageImpl<>(List.of(), pageable, 0);
         when(stockRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(returned);
 
-        Page<Stock> result = stockService.getStocks(null, null, pageable);
+        Page<Stock> result = stockService.getStocks(null, null, null, pageable);
 
         assertThat(result.getContent()).isEmpty();
         verify(stockRepository).findAll(any(Specification.class), eq(pageable));

@@ -17,8 +17,8 @@ export default function SellStockDialog({ stock, open, onClose }: SellStockDialo
       stock={stock}
       open={open}
       onClose={onClose}
-      title="Sell stock"
-      actionLabel="Sell"
+      title="Продажа акции"
+      actionLabel="Продать"
       actionColor="error"
       isPending={isPending}
       onSubmit={(lots) => {

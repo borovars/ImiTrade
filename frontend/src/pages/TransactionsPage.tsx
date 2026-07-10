@@ -10,20 +10,20 @@ export default function TransactionsPage() {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Transactions
+          Операции
         </Typography>
       </Box>
 
       {isLoading && <TableSkeleton />}
 
       {isError && (
-        <StateError title="Failed to load transactions" error={error} onRetry={refetch} />
+        <StateError title="Не удалось загрузить операции" error={error} onRetry={refetch} />
       )}
 
       {data && data.content.length === 0 && !isLoading && !isError && (
         <StateEmpty
-          title="No transactions yet."
-          helperText="Start trading stocks to see history here."
+          title="Операций пока нет."
+          helperText="Начните торговать, чтобы увидеть историю здесь."
         />
       )}
 

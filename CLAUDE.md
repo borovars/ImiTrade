@@ -284,9 +284,9 @@ docker compose down -v      # Stop PostgreSQL + delete data volume
 
 ## Business Rules
 
-- Initial balance: every new user receives `500000.0000` virtual money (`UserService.INITIAL_BALANCE`)
-- **Guest balance**: every new guest receives `100000.0000` virtual money (`UserService.GUEST_INITIAL_BALANCE`)
-- **Guest registration bonus**: `400000.0000` (`UserService.GUEST_REGISTRATION_BONUS`) added when a guest converts to a registered user
+- Initial balance: every new user receives `25000.0000` virtual money (`UserService.INITIAL_BALANCE`, derived as `GUEST_INITIAL_BALANCE + GUEST_REGISTRATION_BONUS` so a direct registrant and a guest-convert end up with the same balance)
+- **Guest balance**: every new guest receives `5000.0000` virtual money (`UserService.GUEST_INITIAL_BALANCE`)
+- **Guest registration bonus**: `20000.0000` (`UserService.GUEST_REGISTRATION_BONUS`) added when a guest converts to a registered user
 - **Guest conversion**: sets `is_guest = false`, `guest_token = null`, fills `email/username/password_hash`, adds bonus to existing balance. Portfolio and transactions are preserved under the same `user_id`.
 - Login never reveals whether an email is registered (same 401 for "wrong password" and "no such user")
 - Stocks are read-only: seeded by Flyway, not modifiable through the API

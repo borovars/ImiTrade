@@ -25,18 +25,23 @@ public class StockService {
     private final StockRepository stockRepository;
 
     /**
-     * Returns a page of stocks, optionally filtered by ticker and/or company name.
+     * Returns a page of stocks, optionally filtered by ticker and/or company name
+     * and/or a combined search term.
      *
      * @param ticker      optional exact, case-insensitive ticker filter
      * @param companyName optional partial, case-insensitive company name filter
+     * @param search      optional partial, case-insensitive search across ticker
+     *                    AND company name (OR-combined). Used by the catalog
+     *                    search field.
      * @param pageable    paging and sorting
      * @return a page of matching {@link Stock} entities
      */
     @Transactional(readOnly = true)
-    public Page<Stock> getStocks(String ticker, String companyName, Pageable pageable) {
+    public Page<Stock> getStocks(String ticker, String companyName, String search, Pageable pageable) {
         Specification<Stock> spec = Specification.allOf(
                 StockSpecifications.hasTickerIgnoreCase(ticker),
-                StockSpecifications.companyNameContainsIgnoreCase(companyName));
+                StockSpecifications.companyNameContainsIgnoreCase(companyName),
+                StockSpecifications.tickerOrCompanyNameContainsIgnoreCase(search));
         return stockRepository.findAll(spec, pageable);
     }
 

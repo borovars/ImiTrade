@@ -57,7 +57,7 @@ export default function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Stack spacing={2}>
         <TextField
-          label="Username"
+          label="Имя пользователя"
           autoComplete="username"
           autoFocus
           fullWidth
@@ -79,7 +79,7 @@ export default function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
           {...register('email')}
         />
         <TextField
-          label="Password"
+          label="Пароль"
           type="password"
           autoComplete="new-password"
           fullWidth
@@ -90,7 +90,7 @@ export default function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
           {...register('password')}
         />
         <TextField
-          label="Confirm Password"
+          label="Повторите пароль"
           type="password"
           autoComplete="new-password"
           fullWidth
@@ -107,15 +107,15 @@ export default function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
           fullWidth
           loading={isPending}
         >
-          Create Account
+          Создать аккаунт
         </Button>
         <Button onClick={handleBack} size="large" fullWidth disabled={isPending}>
-          Back
+          Назад
         </Button>
         <Divider />
         <Box sx={{ textAlign: 'center' }}>
           <MuiLink component={RouterLink} to="/login" underline="hover">
-            Already have an account? Sign in
+            Уже есть аккаунт? Войти
           </MuiLink>
         </Box>
       </Stack>

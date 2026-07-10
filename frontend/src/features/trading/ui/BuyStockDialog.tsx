@@ -17,8 +17,8 @@ export default function BuyStockDialog({ stock, open, onClose }: BuyStockDialogP
       stock={stock}
       open={open}
       onClose={onClose}
-      title="Buy stock"
-      actionLabel="Buy"
+      title="Покупка акции"
+      actionLabel="Купить"
       actionColor="success"
       isPending={isPending}
       onSubmit={(lots) => {

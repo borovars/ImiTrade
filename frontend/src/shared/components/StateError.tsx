@@ -23,10 +23,10 @@ interface StateErrorProps {
  */
 export default function StateError({
   title,
-  helperText = 'Something went wrong',
+  helperText = 'Что-то пошло не так',
   error,
   onRetry,
-  retryText = 'Retry',
+  retryText = 'Повторить',
 }: StateErrorProps) {
   return (
     <Box sx={{ textAlign: 'center', py: 6 }}>

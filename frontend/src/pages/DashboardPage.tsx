@@ -9,7 +9,7 @@ export default function DashboardPage() {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Dashboard
+          Главная
         </Typography>
       </Box>
 

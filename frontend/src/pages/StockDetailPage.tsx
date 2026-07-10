@@ -27,20 +27,20 @@ export default function StockDetailPage() {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 3 }}>
         <Button component={Link} to="/stocks" startIcon={<ArrowLeft size={16} />}>
-          Back to Stocks
+          Назад к акциям
         </Button>
       </Box>
 
       {isLoading && <TableSkeleton />}
 
-      {isError && <StateError title="Failed to load stock" error={error} onRetry={refetch} />}
+      {isError && <StateError title="Не удалось загрузить акцию" error={error} onRetry={refetch} />}
 
       {!isLoading && !isError && !stock && (
         <StateError
-          title="Stock not found."
-          helperText={`No stock with ticker "${ticker}".`}
+          title="Акция не найдена."
+          helperText={`Нет акции с тикером «${ticker}».`}
           onRetry={() => navigate('/stocks')}
-          retryText="Back to Stocks"
+          retryText="Назад к акциям"
         />
       )}
 

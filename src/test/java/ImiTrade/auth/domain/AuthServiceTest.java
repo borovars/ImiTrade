@@ -150,7 +150,7 @@ class AuthServiceTest {
                 .email("alice@example.com")
                 .username("alice")
                 .passwordHash("$2a$10$hash")
-                .balance(new BigDecimal("500000.0000"))
+                .balance(new BigDecimal("25000.0000"))
                 .isGuest(false)
                 .createdAt(Instant.now())
                 .build();
@@ -159,7 +159,7 @@ class AuthServiceTest {
     private static User sampleGuest() {
         return User.builder()
                 .id(2L)
-                .balance(new BigDecimal("100000.0000"))
+                .balance(new BigDecimal("5000.0000"))
                 .isGuest(true)
                 .guestToken(java.util.UUID.fromString("8c33bb2e-8d4b-4e0c-b57d-0dce5f6c4e3f"))
                 .createdAt(Instant.now())

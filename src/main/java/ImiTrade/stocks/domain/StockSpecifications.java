@@ -30,4 +30,20 @@ public final class StockSpecifications {
         String pattern = "%" + companyName.toLowerCase() + "%";
         return (root, query, cb) -> cb.like(cb.lower(root.get("companyName")), pattern);
     }
+
+    /**
+     * Combined search: case-insensitive partial match on {@code ticker}
+     * <strong>OR</strong> {@code company_name}. Used by the catalog search field,
+     * where the user types free text that may match either field (e.g. «sber» or
+     * «Сбербанк»). Returns {@code null} for a blank argument.
+     */
+    public static Specification<Stock> tickerOrCompanyNameContainsIgnoreCase(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        String pattern = "%" + search.toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("ticker")), pattern),
+                cb.like(cb.lower(root.get("companyName")), pattern));
+    }
 }

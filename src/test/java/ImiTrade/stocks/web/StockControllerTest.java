@@ -63,7 +63,7 @@ class StockControllerTest {
                 .description("Крупнейший банк России.").build();
         Stock gazp = Stock.builder().id(2L).ticker("GAZP").companyName("Газпром").exchange("MOEX")
                 .currentPrice(new java.math.BigDecimal("170.2000")).lotSize(10).build();
-        given(stockService.getStocks(eq(null), eq(null), any()))
+        given(stockService.getStocks(eq(null), eq(null), eq(null), any()))
                 .willReturn(new PageImpl<>(List.of(sber, gazp), PageRequest.of(0, 20), 2));
         given(stockLogoResolver.resolve("SBER")).willReturn("/logos/SBER.svg");
         given(stockLogoResolver.resolve("GAZP")).willReturn("/logos/default.svg");

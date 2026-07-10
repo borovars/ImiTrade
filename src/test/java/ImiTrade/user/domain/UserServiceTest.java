@@ -40,7 +40,7 @@ class UserServiceTest {
         userService = new UserService(userRepository, passwordEncoder);
     }
 
-    @DisplayName("register: hashes password, sets initial balance 500000, persists")
+    @DisplayName("register: hashes password, sets initial balance 25000, persists")
     @Test
     void registerSuccess() {
         String email = "alice@example.com";
@@ -63,8 +63,8 @@ class UserServiceTest {
         assertThat(saved.getEmail()).isEqualTo(email);
         assertThat(saved.getUsername()).isEqualTo(username);
         assertThat(saved.getPasswordHash()).isEqualTo(hash);
-        // invariant: business rule "initial balance = 500000.00" must not be weakened
-        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000"));
+        // invariant: business rule "initial balance = 25000.00" must not be weakened
+        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("25000.0000"));
         assertThat(saved.getCreatedAt()).isNotNull();
 
         verify(passwordEncoder, times(1)).encode(raw);
@@ -141,7 +141,7 @@ class UserServiceTest {
                 .isInstanceOf(UserNotFoundException.class);
     }
 
-    @DisplayName("createGuest: sets balance 100000, isGuest true, generates token")
+    @DisplayName("createGuest: sets balance 5000, isGuest true, generates token")
     @Test
     void createGuestSuccess() {
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
@@ -153,7 +153,7 @@ class UserServiceTest {
         User guest = userService.createGuest();
 
         assertThat(guest.getId()).isEqualTo(1L);
-        assertThat(guest.getBalance()).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(guest.getBalance()).isEqualByComparingTo(new BigDecimal("5000.0000"));
         assertThat(guest.getIsGuest()).isTrue();
         assertThat(guest.getGuestToken()).isNotNull();
         assertThat(guest.getEmail()).isNull();
@@ -187,7 +187,7 @@ class UserServiceTest {
         java.util.UUID token = java.util.UUID.randomUUID();
         User guest = User.builder()
                 .id(1L)
-                .balance(new BigDecimal("100000.0000"))
+                .balance(new BigDecimal("5000.0000"))
                 .isGuest(true)
                 .guestToken(token)
                 .build();
@@ -204,7 +204,7 @@ class UserServiceTest {
         assertThat(registered.getPasswordHash()).isEqualTo(hash);
         assertThat(registered.getIsGuest()).isFalse();
         assertThat(registered.getGuestToken()).isNull();
-        assertThat(registered.getBalance()).isEqualByComparingTo(new BigDecimal("500000.0000"));
+        assertThat(registered.getBalance()).isEqualByComparingTo(new BigDecimal("25000.0000"));
     }
 
     @DisplayName("convertGuestToRegistered: throws GuestAlreadyRegisteredException if already registered")

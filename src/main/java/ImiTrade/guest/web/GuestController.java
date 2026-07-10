@@ -31,7 +31,7 @@ public class GuestController {
     private final GuestService guestService;
 
     @Operation(summary = "Create a guest user",
-            description = "Creates a new guest account with an initial balance of 100000.00 and returns a guest token.")
+            description = "Creates a new guest account with an initial balance of 5000.00 and returns a guest token.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Guest created",
                     content = @Content(schema = @Schema(implementation = GuestResponse.class)))

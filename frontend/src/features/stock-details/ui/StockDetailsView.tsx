@@ -32,11 +32,10 @@ function resolveLogoUrl(logoUrl: string): string {
 /**
  * Контент страницы детальной информации об акции.
  *
- * Блоки:
- * - Header: логотип, компания, тикер, биржа, сектор;
- * - Price Block: текущая рыночная цена крупным шрифтом;
+ * Порядок блоков сверху вниз:
+ * - Header (одна строка): логотип + название/тикер/биржа/сектор → цена →
+ *   кнопки Купить (сверху) / Продать (снизу);
  * - User Position: позиция пользователя (если есть) с PnL;
- * - Trading: кнопки Buy/Sell, открывающие существующие диалоги;
  * - Price Chart: интерактивный график истории цены (StockPriceChart);
  * - About: описание компании (из backend);
  * - Company Information: тикер, название, биржа, лотность, сайт.
@@ -60,17 +59,17 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
 
   return (
     <Box>
-      {/* Header */}
+      {/* Header: одна строка — лого + название/чипы, цена, кнопки Купить/Продать. */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
           <Avatar
             variant="rounded"
             src={logoSrc}
             alt={stock.companyName}
             onError={() => setLogoFailed(true)}
-            sx={{ width: 64, height: 64, bgcolor: 'background.default', flexShrink: 0 }}
+            sx={{ width: 72, height: 72, bgcolor: 'background.default', flexShrink: 0, '& .MuiAvatar-img': { objectFit: 'contain' } }}
           />
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography variant="h4" component="h1" gutterBottom>
               {stock.companyName}
             </Typography>
@@ -86,106 +85,97 @@ export default function StockDetailsView({ stock }: StockDetailsViewProps) {
               )}
             </Box>
           </Box>
-        </Box>
-      </Paper>
 
-      <Grid container spacing={3}>
-        {/* Price Block */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Current Price
+          {/* Текущая цена. */}
+          <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, flexShrink: 0 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Текущая цена
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
               <Box component={TrendingUp} sx={{ color: 'success.main', alignSelf: 'center' }} size={32} />
-              <Typography variant="h3" component="span" sx={{ fontWeight: 700 }}>
+              <Typography variant="h4" component="span" sx={{ fontWeight: 700 }}>
                 {formatMoney(stock.currentPrice)}
               </Typography>
             </Box>
-          </Paper>
-        </Grid>
+          </Box>
 
-        {/* User Position */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Your Position
-            </Typography>
-            {isPortfolioLoading ? (
-              <Skeleton variant="rectangular" height={80} />
-            ) : position ? (
-              <PositionDetails
-                quantity={position.quantity}
-                lotSize={position.lotSize}
-                averagePrice={position.averagePrice}
-                currentPrice={position.currentPrice}
-                pnl={position.pnl}
-              />
-            ) : (
-              <Typography color="text.secondary">You do not own this stock.</Typography>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Trading */}
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Trade
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            color="success"
-            onClick={() => setTradeMode('buy')}
-          >
-            Buy
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={() => setTradeMode('sell')}
-          >
-            Sell
-          </Button>
+          {/* Кнопки сделки стопкой: Купить сверху, Продать снизу. */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0, minWidth: 150 }}>
+            <Button
+              variant="contained"
+              color="success"
+              fullWidth
+              onClick={() => setTradeMode('buy')}
+            >
+              Купить
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              onClick={() => setTradeMode('sell')}
+            >
+              Продать
+            </Button>
+          </Box>
         </Box>
       </Paper>
 
       {/* Price Chart: линейный график истории цены (lightweight-charts).
           key={ticker} гарантирует полный ремонт и сброс viewport'а при смене
           акции — графики разных тикеров полностью независимы. */}
-      <Paper sx={{ p: 2, mt: 3 }}>
+      <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 1 }}>
-          Price History
+          История цены
         </Typography>
         <StockPriceChart key={stock.ticker} ticker={stock.ticker} />
       </Paper>
 
+      {/* User Position */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Ваша позиция
+        </Typography>
+        {isPortfolioLoading ? (
+          <Skeleton variant="rectangular" height={80} />
+        ) : position ? (
+          <PositionDetails
+            quantity={position.quantity}
+            lotSize={position.lotSize}
+            averagePrice={position.averagePrice}
+            currentPrice={position.currentPrice}
+            pnl={position.pnl}
+          />
+        ) : (
+          <Typography color="text.secondary">Эта акция отсутствует в вашем портфеле.</Typography>
+        )}
+      </Paper>
+
       {/* About / description */}
       {stock.description && (
-        <Paper sx={{ p: 3, mt: 3 }}>
+        <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            About
+            О компании
           </Typography>
           <Typography sx={{ whiteSpace: 'pre-line' }}>{stock.description}</Typography>
         </Paper>
       )}
 
       {/* Company Information */}
-      <Paper sx={{ p: 3, mt: 3 }}>
+      <Paper sx={{ p: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Company Information
+          Информация о компании
         </Typography>
         <Grid container spacing={2}>
-          <InfoRow label="Ticker" value={stock.ticker} />
-          <InfoRow label="Company Name" value={stock.companyName} />
-          <InfoRow label="Exchange" value={stock.exchange} />
-          <InfoRow label="Lot Size" value={`${stock.lotSize} shares`} />
-          {stock.sector && <InfoRow label="Sector" value={stock.sector} />}
+          <InfoRow label="Тикер" value={stock.ticker} />
+          <InfoRow label="Компания" value={stock.companyName} />
+          <InfoRow label="Биржа" value={stock.exchange} />
+          <InfoRow label="Размер лота" value={`${stock.lotSize} акций`} />
+          {stock.sector && <InfoRow label="Сектор" value={stock.sector} />}
           {stock.website && (
             <Grid size={{ xs: 12, sm: 6 }}>
               <Typography variant="body2" color="text.secondary">
-                Website
+                Сайт
               </Typography>
               <Link
                 href={stock.website}
@@ -226,16 +216,16 @@ function PositionDetails({
 }) {
   const positionValue = quantity * currentPrice;
   const profitLoss = formatProfitLoss(pnl);
-  const lotsLabel = lotSize > 0 && quantity % lotSize === 0 ? ` (${quantity / lotSize} lots)` : '';
+  const lotsLabel = lotSize > 0 && quantity % lotSize === 0 ? ` (${quantity / lotSize} лот.)` : '';
 
   return (
     <Grid container spacing={2}>
-      <InfoRow label="Quantity" value={`${quantity}${lotsLabel}`} />
-      <InfoRow label="Average Price" value={formatMoney(averagePrice)} />
-      <InfoRow label="Position Value" value={formatMoney(positionValue)} />
+      <InfoRow label="Количество" value={`${quantity}${lotsLabel}`} />
+      <InfoRow label="Ср. цена" value={formatMoney(averagePrice)} />
+      <InfoRow label="Стоимость позиции" value={formatMoney(positionValue)} />
       <Grid size={{ xs: 12 }}>
         <Typography variant="body2" color="text.secondary">
-          Profit / Loss
+          Прибыль / Убыток
         </Typography>
         <Typography component="span" sx={{ color: profitLoss.color, fontWeight: 700 }}>
           {profitLoss.text}

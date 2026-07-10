@@ -10,20 +10,20 @@ export default function PortfolioPage() {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Portfolio
+          Портфель
         </Typography>
       </Box>
 
       {isLoading && <TableSkeleton />}
 
       {isError && (
-        <StateError title="Failed to load portfolio" error={error} onRetry={refetch} />
+        <StateError title="Не удалось загрузить портфель" error={error} onRetry={refetch} />
       )}
 
       {data && data.length === 0 && !isLoading && !isError && (
         <StateEmpty
-          title="Your portfolio is empty."
-          helperText="Buy your first stock on the Stocks page."
+          title="Ваш портфель пуст."
+          helperText="Купите первую акцию на странице «Акции»."
         />
       )}
 

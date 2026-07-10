@@ -37,7 +37,7 @@ public class StockController {
     private final StockService stockService;
     private final StockLogoResolver stockLogoResolver;
 
-    @Operation(summary = "List stocks", description = "Returns a page of stocks with optional ticker/companyName filters.")
+    @Operation(summary = "List stocks", description = "Returns a page of stocks with optional ticker/companyName filters and a combined search term.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
                     description = "Page of stocks",
@@ -50,8 +50,9 @@ public class StockController {
     public ResponseEntity<Page<StockResponse>> getStocks(
             @RequestParam(name = "ticker", required = false) String ticker,
             @RequestParam(name = "companyName", required = false) String companyName,
+            @RequestParam(name = "search", required = false) String search,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<Stock> stocks = stockService.getStocks(ticker, companyName, pageable);
+        Page<Stock> stocks = stockService.getStocks(ticker, companyName, search, pageable);
         return ResponseEntity.ok(stocks.map(stock -> StockResponse.from(stock, stockLogoResolver.resolve(stock.getTicker()))));
     }
 
