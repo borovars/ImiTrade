@@ -18,6 +18,15 @@ Current state:
 - **Company profile** (description, sector, website, logoUrl derived from ticker) ✓
 - **Stock price history** (endpoint returns OHLCV candles from MOEX ISS, not persisted; the frontend renders a linear close-price chart from the `close` field — see `frontend/src/features/stock-details/ui/StockPriceChart.tsx`) ✓
 
+Frontend (see `frontend/CLAUDE.md` for full conventions): besides the close-price
+chart on the Stock Detail page, the stocks catalog renders a tiny **SVG sparkline**
+per row (1-year trend, no charting library) in `features/stocks/ui/StockSparkline.tsx`,
+fed by the **same** `/stocks/{ticker}/history` endpoint (period=1M). The Dashboard
+shows `AccountSummary` (account aggregates) **and** a read-only
+`DashboardPortfolioPanel` (positions overview with PnL + % change); a separate
+`/account` route was removed — the top bar always shows total assets
+(`balance + portfolioValue`). Navigation lives in a full-width top bar (no sidebar).
+
 Main business entities:
 - User
 - Stock

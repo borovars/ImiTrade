@@ -1,10 +1,18 @@
 /**
+ * Символ вымышленной валюты «Дубли» (руна ᛔ).
+ *
+ * Добавляется в конец любого отформатированного значения через `formatMoney`,
+ * поэтому автоматически появляется везде: балансы, цены, суммы сделок,
+ * PnL (`formatProfitLoss` построен поверх `formatMoney`), tooltip графика.
+ */
+export const CURRENCY_SYMBOL = 'ᛔ';
+
+/**
  * Единый формат денежных значений для всего приложения.
  *
  * Группировка разрядов — пробелом, дробный разделитель — точка.
- * Пример: 100000.5 -> "100 000.50"
- *
- * Без локализации валюты: символ не добавляется.
+ * В конце добавляется символ валюты `CURRENCY_SYMBOL`.
+ * Пример: 100000.5 -> "100 000.50 ᛔ"
  */
 export function formatMoney(value: number, fractionDigits = 2): string {
   const formatted = new Intl.NumberFormat('en-US', {
@@ -13,8 +21,8 @@ export function formatMoney(value: number, fractionDigits = 2): string {
   }).format(value);
 
   // en-US даёт запятую как разделитель групп — приводим к пробелу,
-  // чтобы получить единый читаемый вид "100 000.00".
-  return formatted.replace(/,/g, ' ');
+  // чтобы получить единый читаемый вид "100 000.00 ᛔ".
+  return `${formatted.replace(/,/g, ' ')} ${CURRENCY_SYMBOL}`;
 }
 
 /**
@@ -49,4 +57,23 @@ export function formatProfitLoss(value: number): { text: string; color: string }
     return { text: `− ${formatMoney(Math.abs(value))}`, color: 'error.main' };
   }
   return { text: formatMoney(value), color: 'text.primary' };
+}
+
+/**
+ * Процент со знаком и цветом по теме MUI.
+ *
+ * Применяется к относительному изменению цены (current − average) / average × 100.
+ * Положительное значение — зелёный (success.main) с плюсом, отрицательное —
+ * красный (error.main) с минусом, ноль — стандартный цвет (text.primary) без знака.
+ * Один знак после точки, символ «%» добавляется автоматически.
+ */
+export function formatPercent(value: number): { text: string; color: string } {
+  const formatted = value.toFixed(1);
+  if (value > 0) {
+    return { text: `+ ${formatted}%`, color: 'success.main' };
+  }
+  if (value < 0) {
+    return { text: `− ${Math.abs(value).toFixed(1)}%`, color: 'error.main' };
+  }
+  return { text: `${formatted}%`, color: 'text.primary' };
 }
