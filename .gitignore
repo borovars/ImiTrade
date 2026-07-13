@@ -4,6 +4,7 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 .kotlin
+nul
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -41,3 +42,22 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+# dependencies
+node_modules/
+
+# production
+dist/
+
+# logs
+*.log
+
+# env
+.env
+.env.local
+
+# editor
+.idea/
+
+# OS
+Thumbs.db

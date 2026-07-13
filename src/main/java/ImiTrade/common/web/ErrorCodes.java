@@ -1,0 +1,26 @@
+package ImiTrade.common.web;
+
+/** Stable, machine-readable error codes surfaced in {@link ApiResponse#code()}. */
+public final class ErrorCodes {
+
+    public static final String VALIDATION_ERROR        = "VALIDATION_ERROR";
+    public static final String EMAIL_ALREADY_EXISTS    = "EMAIL_ALREADY_EXISTS";
+    public static final String USERNAME_ALREADY_EXISTS = "USERNAME_ALREADY_EXISTS";
+    public static final String INVALID_CREDENTIALS     = "INVALID_CREDENTIALS";
+    public static final String UNAUTHENTICATED         = "UNAUTHENTICATED";
+    public static final String ACCESS_DENIED           = "ACCESS_DENIED";
+    public static final String STOCK_NOT_FOUND         = "STOCK_NOT_FOUND";
+    public static final String INVALID_QUANTITY        = "INVALID_QUANTITY";
+    public static final String INSUFFICIENT_BALANCE    = "INSUFFICIENT_BALANCE";
+    public static final String INSUFFICIENT_STOCK_QUANTITY = "INSUFFICIENT_STOCK_QUANTITY";
+    public static final String PORTFOLIO_POSITION_NOT_FOUND = "PORTFOLIO_POSITION_NOT_FOUND";
+    public static final String MARKET_DATA_UNAVAILABLE = "MARKET_DATA_UNAVAILABLE";
+    public static final String INVALID_TICKER         = "INVALID_TICKER";
+    public static final String INVALID_GUEST_TOKEN     = "INVALID_GUEST_TOKEN";
+    public static final String GUEST_ALREADY_REGISTERED = "GUEST_ALREADY_REGISTERED";
+    public static final String RESOURCE_NOT_FOUND      = "RESOURCE_NOT_FOUND";
+    public static final String INTERNAL_ERROR          = "INTERNAL_ERROR";
+
+    private ErrorCodes() {
+    }
+}

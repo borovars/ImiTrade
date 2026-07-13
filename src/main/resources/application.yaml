@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: imitrade
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    default-schema: public
+
+# ============================================================================
+# Application configuration
+# ============================================================================
+app:
+  security:
+    jwt:
+      secret-key: ${APP_JWT_SECRET}
+      # Access token lifetime in milliseconds (default = 24h)
+      access-token-ttl: ${APP_JWT_TTL:86400000}
+      issuer: imitrade
+
+  market:
+    moex:
+      # MOEX ISS root (no trailing slash). Public marketdata — no auth required.
+      base-url: ${APP_MOEX_BASE_URL:https://iss.moex.com/iss}
+      engine: stock
+      market: shares
+      # MOEX trading board (режим торгов) that both price and lot size are read from.
+      # TQBR is the main T+ board of the Moscow Exchange; no fallback to other boards.
+      board-id: TQBR
+      # marketdata field that holds the current price (LAST = last traded price)
+      price-field: LAST
+      # securities field that holds the lot size (number of shares per lot)
+      lot-size-field: LOTSIZE
+
+    scheduler:
+      # Price-refresh scheduler. When false the job does not register at all.
+      enabled: ${APP_MARKET_SCHEDULER_ENABLED:true}
+      # Refresh period in milliseconds (default = 1 minute)
+      fixed-rate: ${APP_MARKET_SCHEDULER_FIXED_RATE:60000}
+
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+server:
+  port: 8080

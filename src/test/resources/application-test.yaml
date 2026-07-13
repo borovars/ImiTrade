@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:imitrade;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        default_schema: PUBLIC
+
+  # Use a plain SQL schema for the in-memory H2 (production stays on Flyway + Postgres)
+  sql:
+    init:
+      mode: always
+      platform: h2
+
+  # Disable Flyway under the H2 test profile
+  flyway:
+    enabled: false
+
+app:
+  security:
+    jwt:
+      secret-key: dGVzdC1zZWNyZXQta2V5LWZvci1iYWNrZW5kLXVuaXQtdGVzdHMtb25seS1uby1wcm9kdWN0aW9uLXVzZS1zdHJvbmctbGVuZ3RoLWtleQ==
+      access-token-ttl: 3600000   # 1h
+      issuer: imitrade-test
+
+  market:
+    scheduler:
+      # Never auto-fire the scheduler during tests; tests trigger refreshPrices() explicitly.
+      enabled: false
