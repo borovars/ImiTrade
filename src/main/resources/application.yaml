@@ -3,9 +3,9 @@ spring:
     name: imitrade
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/imitrade
-    username: imitrade
-    password: imitrade
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -28,8 +28,7 @@ spring:
 app:
   security:
     jwt:
-      # MUST be overridden in production via environment variable / external config
-      secret-key: ${APP_JWT_SECRET:YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkw}
+      secret-key: ${APP_JWT_SECRET}
       # Access token lifetime in milliseconds (default = 24h)
       access-token-ttl: ${APP_JWT_TTL:86400000}
       issuer: imitrade

@@ -4,8 +4,8 @@ services:
     container_name: imitrade-postgres
     environment:
       POSTGRES_DB: imitrade
-      POSTGRES_USER: imitrade
-      POSTGRES_PASSWORD: imitrade
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
