@@ -20,10 +20,10 @@ export default function RegisterPage() {
     <Container maxWidth="xs">
       <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Create Account
+          Создать аккаунт
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Save your progress and keep trading
+          Сохраните прогресс и продолжите торговать
         </Typography>
       </Box>
       <Paper sx={{ p: 3 }}>

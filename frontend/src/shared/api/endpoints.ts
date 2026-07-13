@@ -13,6 +13,8 @@ export const API_ENDPOINTS = {
   },
   STOCKS: {
     BASE: '/api/v1/stocks',
+    /** История цены акции: GET /api/v1/stocks/{ticker}/history?period=&from=. */
+    history: (ticker: string) => `/api/v1/stocks/${ticker}/history`,
   },
   PORTFOLIO: {
     BASE: '/api/v1/portfolio',

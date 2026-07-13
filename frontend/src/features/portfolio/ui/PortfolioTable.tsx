@@ -56,14 +56,14 @@ export default function PortfolioTable({ positions }: PortfolioTableProps) {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Ticker</TableCell>
-              <TableCell>Company</TableCell>
-              <TableCell align="right">Quantity</TableCell>
-              <TableCell align="right">Average Price</TableCell>
-              <TableCell align="right">Current Price</TableCell>
-              <TableCell align="right">Position Value</TableCell>
-              <TableCell align="right">Profit / Loss</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>Тикер</TableCell>
+              <TableCell>Компания</TableCell>
+              <TableCell align="right">Количество</TableCell>
+              <TableCell align="right">Ср. цена</TableCell>
+              <TableCell align="right">Текущая цена</TableCell>
+              <TableCell align="right">Стоимость позиции</TableCell>
+              <TableCell align="right">Прибыль / Убыток</TableCell>
+              <TableCell align="right">Действия</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -72,7 +72,7 @@ export default function PortfolioTable({ positions }: PortfolioTableProps) {
               const positionValue = position.quantity * position.currentPrice;
               const lotsLabel =
                 position.lotSize > 0 && position.quantity % position.lotSize === 0
-                  ? ` (${position.quantity / position.lotSize} lots)`
+                  ? ` (${position.quantity / position.lotSize} лот.)`
                   : '';
 
               return (
@@ -97,7 +97,7 @@ export default function PortfolioTable({ positions }: PortfolioTableProps) {
                   </TableCell>
                   <TableCell align="right">
                     <Button size="small" color="error" onClick={() => setSellPosition(position)}>
-                      Sell
+                      Продать
                     </Button>
                   </TableCell>
                 </TableRow>

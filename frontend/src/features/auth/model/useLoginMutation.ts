@@ -40,7 +40,7 @@ export function useLoginMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.account });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      toast.success(`Welcome back, ${user.username}`);
+      toast.success(`С возвращением, ${user.username}`);
     },
     onError: (error) => {
       // 4xx (включая 401 на неверный пароль) показываем тостом; форма не очищается.

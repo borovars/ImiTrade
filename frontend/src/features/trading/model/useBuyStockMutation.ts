@@ -27,7 +27,7 @@ export function useBuyStockMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocks });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      toast.success(`Bought ${data.lots} lots (${data.quantity} shares) of ${data.stockTicker}`);
+      toast.success(`Куплено ${data.lots} лот. (${data.quantity} акций) — ${data.stockTicker}`);
     },
     onError: (error) => {
       toast.error(error.message);

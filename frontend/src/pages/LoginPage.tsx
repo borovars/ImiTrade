@@ -20,10 +20,10 @@ export default function LoginPage() {
     <Container maxWidth="xs">
       <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Sign In
+          Вход
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Welcome back to ImiTrade
+          С возвращением в ImiTrade
         </Typography>
       </Box>
       <Paper sx={{ p: 3 }}>

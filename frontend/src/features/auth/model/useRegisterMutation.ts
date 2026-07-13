@@ -19,7 +19,7 @@ interface RegisterResult {
  * В `mutationFn` пробрасываем сохранённый `guestToken` в теле запроса — это
  * ключевой момент: backend не создаёт нового пользователя, а привязывает email +
  * пароль к существующему гостю (`AuthService.register` → `convertGuestToRegistered`),
- * сохраняя баланс, портфель и историю, и начисляет +400 000. После успешной
+ * сохраняя баланс, портфель и историю, и начисляет +20 000. После успешной
  * конвертации гостевой токен недействителен — очищаем его.
  *
  * Далее так же, как в login: грузим профиль через `getCurrentUser()` (с
@@ -45,7 +45,7 @@ export function useRegisterMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.account });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      toast.success(`Account created. Welcome, ${user.username}`);
+      toast.success(`Аккаунт создан. Добро пожаловать, ${user.username}`);
     },
     onError: (error) => {
       // 4xx (409 на дубль email/username и т.п.) показываем тостом; форма не очищается.

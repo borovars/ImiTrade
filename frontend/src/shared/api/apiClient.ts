@@ -6,7 +6,11 @@ import { API_ENDPOINTS } from './endpoints';
 import { GuestResponse } from './types';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  // В dev .env задаёт VITE_API_URL=http://localhost:8080.
+  // В production (и при локальном prod-build) значение пустое → используется
+  // относительный путь от текущего origin, который проксируется через Nginx
+  // на backend. Явная проверка на undefined нужна, т.к. пустая строка — falsy.
+  baseURL: import.meta.env.VITE_API_URL ?? '',
   headers: {
     'Content-Type': 'application/json',
   },

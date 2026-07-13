@@ -28,12 +28,12 @@ export default function TransactionsTable({ transactions }: TransactionsTablePro
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Date</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Ticker</TableCell>
-            <TableCell align="right">Quantity</TableCell>
-            <TableCell align="right">Price</TableCell>
-            <TableCell align="right">Total Amount</TableCell>
+            <TableCell>Дата</TableCell>
+            <TableCell>Тип</TableCell>
+            <TableCell>Тикер</TableCell>
+            <TableCell align="right">Количество</TableCell>
+            <TableCell align="right">Цена</TableCell>
+            <TableCell align="right">Сумма</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

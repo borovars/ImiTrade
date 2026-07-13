@@ -25,13 +25,13 @@ class GuestServiceTest {
     @InjectMocks
     private GuestService guestService;
 
-    @DisplayName("createGuest: returns token and initial balance 100000")
+    @DisplayName("createGuest: returns token and initial balance 5000")
     @Test
     void createGuestSuccess() {
         UUID token = UUID.randomUUID();
         User guest = User.builder()
                 .id(1L)
-                .balance(new BigDecimal("100000.0000"))
+                .balance(new BigDecimal("5000.0000"))
                 .isGuest(true)
                 .guestToken(token)
                 .build();
@@ -40,6 +40,6 @@ class GuestServiceTest {
         GuestResponse response = guestService.createGuest();
 
         assertThat(response.guestToken()).isEqualTo(token);
-        assertThat(response.balance()).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(response.balance()).isEqualByComparingTo(new BigDecimal("5000.0000"));
     }
 }

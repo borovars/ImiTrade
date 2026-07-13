@@ -44,16 +44,16 @@ class GuestIntegrationTest {
         String responseBody = mockMvc.perform(post("/api/v1/guest"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.guestToken").isNotEmpty())
-                .andExpect(jsonPath("$.balance").value(100000.0))
+                .andExpect(jsonPath("$.balance").value(5000.0))
                 .andReturn().getResponse().getContentAsString();
 
         GuestResponse response = objectMapper.readValue(responseBody, GuestResponse.class);
         assertThat(response.guestToken()).isNotNull();
-        assertThat(response.balance()).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(response.balance()).isEqualByComparingTo(new BigDecimal("5000.0000"));
 
         User saved = userRepository.findByGuestToken(response.guestToken()).orElseThrow();
         assertThat(saved.getIsGuest()).isTrue();
-        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("100000.0000"));
+        assertThat(saved.getBalance()).isEqualByComparingTo(new BigDecimal("5000.0000"));
         assertThat(saved.getEmail()).isNull();
         assertThat(saved.getUsername()).isNull();
         assertThat(saved.getPasswordHash()).isNull();

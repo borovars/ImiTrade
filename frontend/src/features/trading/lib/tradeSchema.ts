@@ -10,9 +10,9 @@ import { z } from 'zod';
  */
 export const lotsSchema = z.object({
   lots: z.coerce
-    .number({ message: 'Enter a number of lots' })
-    .int('Lots must be an integer')
-    .positive('Lots must be greater than 0'),
+    .number({ message: 'Введите количество лотов' })
+    .int('Количество лотов должно быть целым числом')
+    .positive('Количество лотов должно быть больше 0'),
 });
 
 export type LotsForm = z.infer<typeof lotsSchema>;

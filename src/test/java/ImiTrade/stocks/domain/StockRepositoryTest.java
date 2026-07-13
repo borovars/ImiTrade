@@ -86,6 +86,50 @@ class StockRepositoryTest {
         assertThat(page.getContent().get(0).getTicker()).isEqualTo("ROSN");
     }
 
+    @DisplayName("search by partial ticker (case-insensitive) returns matching stocks")
+    @Test
+    void searchByPartialTicker() {
+        Specification<Stock> spec = StockSpecifications.tickerOrCompanyNameContainsIgnoreCase("ga");
+
+        Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).getTicker()).isEqualTo("GAZP");
+    }
+
+    @DisplayName("search by partial company name (case-insensitive) returns matching stocks")
+    @Test
+    void searchByPartialCompanyName() {
+        Specification<Stock> spec = StockSpecifications.tickerOrCompanyNameContainsIgnoreCase("нефть");
+
+        Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).getCompanyName()).isEqualTo("Роснефть");
+    }
+
+    @DisplayName("search matches ticker OR company name across multiple stocks")
+    @Test
+    void searchMatchesTickerOrCompanyName() {
+        // «о» встречается в company names Газпром/ЛУКОЙЛ/Роснефть; «sber» — тикер SBER.
+        Specification<Stock> spec = StockSpecifications.tickerOrCompanyNameContainsIgnoreCase("sber");
+
+        Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).getTicker()).isEqualTo("SBER");
+    }
+
+    @DisplayName("search with no match returns an empty page")
+    @Test
+    void searchNoMatch() {
+        Specification<Stock> spec = StockSpecifications.tickerOrCompanyNameContainsIgnoreCase("zzz");
+
+        Page<Stock> page = stockRepository.findAll(spec, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+    }
+
     @DisplayName("pagination returns the requested page slice and total count")
     @Test
     void pagination() {

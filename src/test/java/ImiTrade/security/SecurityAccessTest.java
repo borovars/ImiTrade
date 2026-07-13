@@ -98,7 +98,7 @@ class SecurityAccessTest {
         mockMvc.perform(post("/api/v1/guest"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.guestToken").isNotEmpty())
-                .andExpect(jsonPath("$.balance").value(100000.0));
+                .andExpect(jsonPath("$.balance").value(5000.0));
     }
 
     @Test
