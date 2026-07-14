@@ -1,6 +1,7 @@
 const STORAGE_KEYS = {
   JWT_TOKEN: 'imitrade_jwt_token',
   GUEST_TOKEN: 'imitrade_guest_token',
+  ONBOARDING_COMPLETED: 'imitrade_onboarding_completed',
 } as const;
 
 export const storage = {
@@ -25,5 +26,15 @@ export const storage = {
   clearAuth(): void {
     this.removeJwtToken();
     this.removeGuestToken();
+  },
+  /**
+   * Пройден ли онбординг (приветственное окно при первом визите).
+   * Флаг хранится как строка 'true'; при отсутствии считается непройденным.
+   */
+  isOnboardingCompleted(): boolean {
+    return localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED) === 'true';
+  },
+  setOnboardingCompleted(): void {
+    localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
   },
 };

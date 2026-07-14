@@ -12,7 +12,7 @@ import {
   Avatar,
   Box,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Stock } from '../types/stockTypes';
 import { formatMoney } from '@/shared/utils/format';
 import BuyStockDialog from '@/features/trading/ui/BuyStockDialog';
@@ -55,6 +55,10 @@ interface StocksTableProps {
  *
  * Строки увеличены для читаемости: высота ячейки ~57px и увеличенный шрифт.
  * Диалоги Buy/Sell монтируются здесь же (локальное состояние tradeStock).
+ *
+ * Вся строка кликабельна — клик по любой ячейке открывает страницу акции
+ * (`/stocks/{ticker}`). Кнопки Купить/Продать и ссылка-тикер прерывают
+ * всплытие (`stopPropagation`), поэтому клик по ним не вызывает переход.
  */
 export default function StocksTable({
   stocks,
@@ -65,6 +69,7 @@ export default function StocksTable({
   onPageChange,
   onRowsPerPageChange,
 }: StocksTableProps) {
+  const navigate = useNavigate();
   const [tradeStock, setTradeStock] = useState<Stock | null>(null);
   const [tradeMode, setTradeMode] = useState<TradeMode | null>(null);
 
@@ -77,6 +82,8 @@ export default function StocksTable({
     setTradeStock(null);
     setTradeMode(null);
   };
+
+  const goToStock = (ticker: string) => navigate(`/stocks/${ticker}`);
 
   return (
     <>
@@ -98,7 +105,12 @@ export default function StocksTable({
               <TableRow
                 key={stock.id}
                 hover
-                sx={{ height: 114, '& .MuiTableCell-root': { fontSize: '1rem' } }}
+                onClick={() => goToStock(stock.ticker)}
+                sx={{
+                  height: 114,
+                  cursor: 'pointer',
+                  '& .MuiTableCell-root': { fontSize: '1rem' },
+                }}
               >
                 <TableCell sx={{ pl: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -116,6 +128,7 @@ export default function StocksTable({
                     />
                     <Link
                       to={`/stocks/${stock.ticker}`}
+                      onClick={(e) => e.stopPropagation()}
                       style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}
                     >
                       {stock.ticker}
@@ -135,12 +148,22 @@ export default function StocksTable({
                   <Button
                     size="small"
                     color="success"
-                    onClick={() => openTrade(stock, 'buy')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTrade(stock, 'buy');
+                    }}
                     sx={{ mr: 1 }}
                   >
                     Купить
                   </Button>
-                  <Button size="small" color="error" onClick={() => openTrade(stock, 'sell')}>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTrade(stock, 'sell');
+                    }}
+                  >
                     Продать
                   </Button>
                 </TableCell>

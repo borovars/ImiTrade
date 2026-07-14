@@ -26,6 +26,12 @@ interface TradeStockDialogProps {
   /** MUI-цвет кнопки подтверждения ('success' / 'error' и т.д.). */
   actionColor?: 'success' | 'error' | 'primary';
   isPending: boolean;
+  /**
+   * Текущий баланс пользователя. Передаётся только диалогом покупки —
+   * тогда под итоговой суммой показывается текущий баланс и баланс
+   * после сделки (balance − total). Для продажи не передаётся.
+   */
+  balance?: number;
   /** Вызывается с валидным целым количеством лотов > 0. */
   onSubmit: (lots: number) => void;
 }
@@ -48,6 +54,7 @@ export default function TradeStockDialog({
   actionLabel,
   actionColor = 'primary',
   isPending,
+  balance,
   onSubmit,
 }: TradeStockDialogProps) {
   const {
@@ -72,6 +79,9 @@ export default function TradeStockDialog({
   const lots = Number(watchedLots) || 0;
   const shares = lots > 0 ? lots * stock.lotSize : 0;
   const total = shares * stock.currentPrice;
+  // Баланс после покупки: текущий баланс за вычетом суммы сделки.
+  // Отображается только в диалоге покупки (когда передан balance).
+  const balanceAfter = balance !== undefined ? balance - total : 0;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -139,6 +149,43 @@ export default function TradeStockDialog({
                 {formatMoney(total)}
               </Typography>
             </Box>
+
+            {balance !== undefined && (
+              <Box
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  bgcolor: 'action.selected',
+                  borderRadius: 1,
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Текущий баланс
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {formatMoney(balance)}
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  sx={{ mt: 0.5 }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    Баланс после покупки
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 600 }}
+                    color={balanceAfter < 0 ? 'error.main' : 'text.primary'}
+                  >
+                    {formatMoney(balanceAfter)}
+                  </Typography>
+                </Stack>
+              </Box>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

@@ -5,6 +5,7 @@ import StocksPage from '@/pages/StocksPage';
 import StockDetailPage from '@/pages/StockDetailPage';
 import PortfolioPage from '@/pages/PortfolioPage';
 import TransactionsPage from '@/pages/TransactionsPage';
+import AboutPage from '@/pages/AboutPage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 
@@ -21,6 +22,7 @@ export default function AppRouter() {
           <Route path="/stocks/:ticker" element={<StockDetailPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
+          <Route path="/about" element={<AboutPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

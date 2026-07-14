@@ -1,5 +1,5 @@
-import { AppBar, Toolbar, Typography, Box, Button, Chip, Skeleton, Tooltip } from '@mui/material';
-import { LogIn, UserPlus, LogOut, LayoutDashboard, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { AppBar, Toolbar, Typography, Box, Button, Chip, Skeleton, Tooltip, IconButton } from '@mui/material';
+import { LogIn, UserPlus, LogOut, LayoutDashboard, TrendingUp, Wallet, Receipt, Info } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/features/auth/model/authStore';
 import { useLogout } from '@/features/auth/model/useLogout';
@@ -51,10 +51,25 @@ export default function AppTopBar() {
   return (
     <AppBar position="fixed">
       <Toolbar sx={{ position: 'relative' }}>
-        {/* Бренд слева. */}
-        <Typography variant="h6" noWrap component="div">
-          ImiTrade
-        </Typography>
+        {/* Бренд слева + кнопка «О проекте» (только иконка i в кружочке). */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h6" noWrap component="div">
+            ImiTrade
+          </Typography>
+          <IconButton
+            component={NavLink}
+            to="/about"
+            color="inherit"
+            size="small"
+            aria-label="О проекте"
+            sx={{
+              opacity: 0.7,
+              '&.active': { opacity: 1, bgcolor: 'rgba(255, 255, 255, 0.15)' },
+            }}
+          >
+            <Info size={18} />
+          </IconButton>
+        </Box>
 
         {/* Навигация по центру (абсолютное центрирование относительно toolbar'а).
             Текущий раздел подсвечивается через .active NavLink. */}
