@@ -16,7 +16,7 @@ Current state:
 - **Lot-based trading** (lot size per stock, synced from MOEX; trades are placed in lots, shares remain the source of truth) ✓
 - **Guest Mode** (create guest, X-Guest-Token auth, convert to registered user with bonus) ✓
 - **Company profile** (description, sector, website, logoUrl derived from ticker) ✓
-- **Stock price history** (endpoint returns OHLCV candles from MOEX ISS, not persisted; the frontend renders a linear close-price chart from the `close` field — see `frontend/src/features/stock-details/ui/StockPriceChart.tsx`) ✓
+- **Stock price history** (endpoint returns OHLCV candles from MOEX ISS, not persisted; the frontend renders a linear close-price chart from the `close` field — see `frontend/src/features/stock-details/ui/StockPriceChart.tsx`; **mouse-wheel zooms around the cursor**, LMB-drag lazy-loads older data **same interval**, and a custom DOM-overlay shows a black dashed vertical guide + a brand-color marker + a date/price tooltip on hover) ✓
 
 Frontend (see `frontend/CLAUDE.md` for full conventions): besides the close-price
 chart on the Stock Detail page, the stocks catalog renders a tiny **SVG sparkline**

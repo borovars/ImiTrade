@@ -1,45 +1,27 @@
-import { AppBar, Toolbar, Typography, Box, Button, Chip, Skeleton, Tooltip, IconButton } from '@mui/material';
-import { LogIn, UserPlus, LogOut, LayoutDashboard, TrendingUp, Wallet, Receipt, Info } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
-import { useAuth } from '@/features/auth/model/authStore';
+import { AppBar, Toolbar, Typography, Box, Tooltip, Skeleton } from '@mui/material';
+import { Info } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { IconButton } from '@mui/material';
 import { useLogout } from '@/features/auth/model/useLogout';
 import { useAccountQuery } from '@/features/account/model/useAccountQuery';
 import { formatMoney } from '@/shared/utils/format';
-import type { ReactNode } from 'react';
+import DesktopNav from './DesktopNav';
+import MobileNav from './MobileNav';
+import UserMenu from './UserMenu';
 
 /**
- * Верхняя панель приложения.
+ * Верхняя панель приложения (адаптивная).
  *
- * Layout: бренд «ImiTrade» слева, основная навигация (Главная / Акции / Портфель /
- * Операции) по центру (абсолютное центрирование относительно toolbar'а), блок
- * аутентификации справа. Перед блоком аутентификации — краткая сводка по аккаунту:
- * суммарная стоимость активов (баланс + стоимость портфеля), обновляется через
- * `useAccountQuery` (тот же query-ключ, что и на Dashboard — запрос дедуплицируется).
+ * Layout:
+ * - слева — бургер `MobileNav` (только xs/sm) + бренд «ImiTrade» + иконка About;
+ * - по центру — `DesktopNav` (только md+), абсолютно отцентрована;
+ * - справа — блок «Активы» (баланс + портфель) + `UserMenu` (меню аккаунта/гостя).
  *
- * Текущий раздел подсвечивается (`active`-класс `NavLink`). Боковой сайдбар убран —
- * вся навигация живёт здесь, панель на всю ширину.
- *
- * Logout выполняется без перезагрузки страницы (`useLogout`): очищает storage,
- * React Query cache и переводит приложение в гостевой режим.
+ * Переключение desktop/mobile — через MUI breakpoints (`sx.display: { xs, md }`),
+ * без `useMediaQuery`. Auth-логика не здесь: `useLogout` инкапсулирует выход,
+ * `UserMenu` только отображает состояние и вызывает колбэк.
  */
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: ReactNode;
-  /** `end` нужен для `/dashboard`, чтобы он не ловил все маршруты (prefix-match). */
-  end?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Главная', path: '/dashboard', icon: <LayoutDashboard size={20} />, end: true },
-  { label: 'Акции', path: '/stocks', icon: <TrendingUp size={20} /> },
-  { label: 'Портфель', path: '/portfolio', icon: <Wallet size={20} /> },
-  { label: 'Операции', path: '/transactions', icon: <Receipt size={20} /> },
-];
-
 export default function AppTopBar() {
-  const { state } = useAuth();
   const logout = useLogout();
   const { data: account, isLoading: accountLoading } = useAccountQuery();
 
@@ -51,7 +33,8 @@ export default function AppTopBar() {
   return (
     <AppBar position="fixed">
       <Toolbar sx={{ position: 'relative' }}>
-        {/* Бренд слева + кнопка «О проекте» (только иконка i в кружочке). */}
+        {/* Слева: бургер (mobile) + бренд + About. */}
+        <MobileNav />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography variant="h6" noWrap component="div">
             ImiTrade
@@ -71,47 +54,13 @@ export default function AppTopBar() {
           </IconButton>
         </Box>
 
-        {/* Навигация по центру (абсолютное центрирование относительно toolbar'а).
-            Текущий раздел подсвечивается через .active NavLink. */}
-        <Box
-          sx={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          {NAV_ITEMS.map((item) => (
-            <Button
-              key={item.path}
-              component={NavLink}
-              to={item.path}
-              end={item.end}
-              color="inherit"
-              startIcon={item.icon}
-              sx={{
-                fontSize: '1.05rem',
-                textTransform: 'none',
-                opacity: 0.75,
-                '&.active': {
-                  opacity: 1,
-                  fontWeight: 700,
-                  bgcolor: 'rgba(255, 255, 255, 0.15)',
-                },
-              }}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </Box>
+        {/* Центр: desktop-навигация (md+). */}
+        <DesktopNav />
 
-        {/* Блок аутентификации справа. */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto' }}>
-          {/* Краткая сводка по аккаунту: суммарная стоимость (баланс + портфель). */}
+        {/* Справа: Активы + меню пользователя. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
           {accountLoading ? (
-            <Skeleton variant="rounded" width={150} height={32} />
+            <Skeleton variant="rounded" width={120} height={32} />
           ) : (
             totalAssets !== null && (
               <Tooltip title="Баланс + стоимость портфеля" arrow>
@@ -126,7 +75,7 @@ export default function AppTopBar() {
                     bgcolor: 'rgba(255, 255, 255, 0.15)',
                   }}
                 >
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                  <Typography variant="caption" sx={{ display: { xs: 'none', sm: 'inline' }, opacity: 0.8 }}>
                     Активы:
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
@@ -137,53 +86,7 @@ export default function AppTopBar() {
             )
           )}
 
-          <Chip
-            label={state.userType === 'auth' ? 'Пользователь' : 'Гость'}
-            color={state.userType === 'auth' ? 'primary' : 'default'}
-            size="small"
-          />
-
-          {state.userType === 'auth' ? (
-            <>
-              {state.user?.username && (
-                <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
-                  {state.user.username}
-                </Typography>
-              )}
-              <Button
-                color="inherit"
-                startIcon={<LogOut size={18} />}
-                onClick={logout}
-                size="small"
-                sx={{ textTransform: 'none' }}
-              >
-                Выйти
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                color="inherit"
-                component={Link}
-                to="/login"
-                startIcon={<LogIn size={18} />}
-                size="small"
-                sx={{ textTransform: 'none' }}
-              >
-                Войти
-              </Button>
-              <Button
-                color="inherit"
-                component={Link}
-                to="/register"
-                startIcon={<UserPlus size={18} />}
-                size="small"
-                sx={{ textTransform: 'none' }}
-              >
-                Регистрация
-              </Button>
-            </>
-          )}
+          <UserMenu onLogout={logout} />
         </Box>
       </Toolbar>
     </AppBar>

@@ -1,4 +1,4 @@
-import type { HistoryPeriodCode } from '../../model/historyTypes';
+import type { HistoryPeriodCode } from './periods';
 
 /**
  * Модель взаимодействия с графиком (стиль Т-Инвестиций / MOEX).
@@ -8,6 +8,9 @@ import type { HistoryPeriodCode } from '../../model/historyTypes';
  * догружают более старые данные **тем же интервалом** — поэтому вся серия всегда
  * состоит из свечей одного bucket size, без артефактов (пиков/провалов) от
  * смешивания интервалов.
+ *
+ * Используется только при `lazyLoad=true` (график цены акции). График стоимости
+ * портфеля запрашивает готовый ряд целиком и не использует lazy-load.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,7 +24,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const PERIOD_LOOKBACK_DAYS: Record<HistoryPeriodCode, number> = {
   '1D': 90, // ~3 месяца
-  '1W': 150, // ~5 месяцев
+  '1W': 150, // ~5 месяца
   '1M': 365 * 3, // ~3 года
   '1Y': 365 * 10, // ~10 лет
 };
@@ -75,9 +78,11 @@ export const CANONICAL_PERIODS: HistoryPeriodCode[] = ['1D', '1W', '1M', '1Y'];
 /**
  * Запас для предзагрузки: триггерим lazy-запрос, когда видимый левый край
  * приближается к границе загруженных данных ближе чем на эту долю от ширины
- * видимого диапазона. Так при панорамировании данные успевают прийти.
+ * видимого диапазона. Так при панорамировании/зуме данные успевают прийти.
+ * Больше чем «споловину» — чтобы чанк приходил ДО того, как левый край видимой
+ * области врежется в пустую зону при быстром зуме колёсиком.
  */
-const PRELOAD_FRACTION = 0.5;
+const PRELOAD_FRACTION = 0.75;
 
 /**
  * Состояние viewport'а графика.
@@ -190,6 +195,58 @@ export function debounce<T extends (...args: never[]) => void>(
         clearTimeout(timer);
         timer = null;
       }
+    },
+  };
+}
+
+/**
+ * Leading-edge throttle: вызывает `fn` СРАЗУ при первом вызове, а последующие
+ * в течение `delay` мс группирует и выполняет один раз в конце окна (trailing).
+ *
+ * В отличие от debounce (который ждёт «тишины»), здесь запрос уходит на самом
+ * первом импульсе события. Это критично для колёсного зума: при непрерывном
+ * скролле debounce постоянно сбрасывался и запрос задерживался, пока
+ * пользователь не остановится, — throttle же уходит немедленно и затем
+ * группирует повторы не чаще раза в `delay`.
+ */
+export function throttle<T extends (...args: never[]) => void>(
+  fn: T,
+  delay: number
+): { call: (...args: Parameters<T>) => void; cancel: () => void } {
+  let last = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastArgs: Parameters<T> | null = null;
+  return {
+    call(...args: Parameters<T>) {
+      const now = Date.now();
+      const remaining = delay - (now - last);
+      lastArgs = args;
+      if (remaining <= 0) {
+        // Окно прошло — выполняем сразу (leading).
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        last = now;
+        lastArgs = null;
+        fn(...args);
+      } else if (timer === null) {
+        // В окне — планируем один trailing-вызов последними аргументами.
+        timer = setTimeout(() => {
+          timer = null;
+          last = Date.now();
+          const pending = lastArgs;
+          lastArgs = null;
+          if (pending) fn(...pending);
+        }, remaining);
+      }
+    },
+    cancel() {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      lastArgs = null;
     },
   };
 }

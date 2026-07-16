@@ -1,6 +1,8 @@
 import apiClient from '@/shared/api/apiClient';
 import { API_ENDPOINTS } from '@/shared/api/endpoints';
-import { HistoryCandleDto, HistoryPeriodCode, HistoryPoint } from '../model/historyTypes';
+import { HistoryPeriodCode } from '@/shared/lib/chart/periods';
+import type { HistoryPoint } from '@/shared/lib/chart/historyPoint';
+import { HistoryCandleDto } from '../model/historyTypes';
 
 /**
  * Получение истории цены акции.
@@ -19,8 +21,8 @@ import { HistoryCandleDto, HistoryPeriodCode, HistoryPoint } from '../model/hist
  *
  * @param ticker  тикер, напр. `SBER`
  * @param from    левая граница диапазона; кодируется как `yyyy-MM-dd`
- * @param period  код периода (`1D`/`1W`/`1M`/`3M`/`1Y`) — задаёт интервал свечи
- * @returns точки `{ time, close }`, отсортированные по времени (backend уже
+ * @param period  код периода (`1D`/`1W`/`1M`/`1Y`) — задаёт интервал свечи
+ * @returns точки `{ time, value }`, отсортированные по времени (backend уже
  *          сортирует по возрастанию `time`)
  */
 export async function getStockHistory(
@@ -45,5 +47,7 @@ function toIsoDate(date: Date): string {
 }
 
 function toHistoryPoint(candle: HistoryCandleDto): HistoryPoint {
-  return { time: candle.time, close: Number(candle.close) };
+  // Графику нужен только close — кладём его в общее поле `value`, которое
+  // одинаково интерпретируется и графиком цены, и графиком стоимости портфеля.
+  return { time: candle.time, value: Number(candle.close) };
 }

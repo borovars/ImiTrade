@@ -6,22 +6,15 @@
  * `time, open, high, low, close, volume`), но линейному графику цены нужны
  * только `time` и `close` — поэтому API-слой на фронте отсекает лишние поля
  * и приводит ответ к {@link HistoryPoint}.
- */
-
-/**
- * Короткий код периода, как его принимает backend
- * (`HistoryPeriod.parse` в `StockHistoryController`).
  *
- * Модель «кнопка = интервал свечи» (стиль Т-Инвестиций / MOEX):
- * - `1D` — дневные свечи, последние 3 месяца;
- * - `1W` — недельные свечи, последние 5 месяцев;
- * - `1M` — месячные свечи, последние 3 года;
- * - `1Y` — квартальные свечи, последние 10 лет.
- *
- * `3M` удалён — его диапазон покрывается 1W/1M. Должно совпадать с backend
- * `HistoryPeriod` (см. `HistoryPeriod.java`).
+ * Общие типы для графиков (`HistoryPeriodCode`, `HistoryPoint`) живут в
+ * `shared/lib/chart` и реэкспортируются здесь для обратной совместимости с
+ * внутренними импортами фичи stock-details. Семантика периода
+ * (1D/1W/1M/1Y → интервал свечи + lookback) описана в
+ * `shared/lib/chart/periods.ts`.
  */
-export type HistoryPeriodCode = '1D' | '1W' | '1M' | '1Y';
+export type { HistoryPeriodCode } from '@/shared/lib/chart/periods';
+export type { HistoryPoint } from '@/shared/lib/chart/historyPoint';
 
 /**
  * Сырая свеча из ответа backend (полный `CandleResponse`).
@@ -37,15 +30,4 @@ export interface HistoryCandleDto {
   low: number | string;
   close: number | string;
   volume: number | string | null;
-}
-
-/**
- * Точка на линейном графике: только то, что нужно для отрисовки close.
- * `time` остаётся ISO-строкой — она однозначно маппится на lightweight-charts.
- */
-export interface HistoryPoint {
-  /** ISO-строка UTC-Instant, напр. `2025-01-01T10:00:00Z`. */
-  time: string;
-  /** Цена закрытия свечи. */
-  close: number;
 }

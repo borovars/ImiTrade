@@ -2,9 +2,11 @@ package ImiTrade.portfolio.web;
 
 import ImiTrade.common.web.GlobalExceptionHandler;
 import ImiTrade.portfolio.domain.PortfolioService;
+import ImiTrade.portfolio.dto.PortfolioHistoryResponse;
 import ImiTrade.portfolio.dto.PortfolioResponse;
 import ImiTrade.security.AuthenticatedUser;
 import ImiTrade.security.JwtAuthentication;
+import ImiTrade.stocks.service.HistoryPeriod;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,9 +24,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -98,6 +103,49 @@ class PortfolioControllerTest {
         given(portfolioService.getPortfolio(USER_ID)).willReturn(List.of());
 
         mockMvc.perform(get("/api/v1/portfolio")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    @DisplayName("GET /api/v1/portfolio/history — 200 with the value time series for the default 1D period")
+    @Test
+    void getPortfolioHistoryReturnsSeries() throws Exception {
+        List<PortfolioHistoryResponse> series = List.of(
+                new PortfolioHistoryResponse(Instant.parse("2026-07-01T00:00:00Z"), new BigDecimal("23154.4200")),
+                new PortfolioHistoryResponse(Instant.parse("2026-07-02T00:00:00Z"), new BigDecimal("23421.1700")));
+        given(portfolioService.getHistory(USER_ID, HistoryPeriod.D1, null)).willReturn(series);
+
+        mockMvc.perform(get("/api/v1/portfolio/history")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$[0].time").value("2026-07-01T00:00:00Z"))
+                .andExpect(jsonPath("$[0].value").value(23154.42))
+                .andExpect(jsonPath("$[1].time").value("2026-07-02T00:00:00Z"))
+                .andExpect(jsonPath("$[1].value").value(23421.17));
+    }
+
+    @DisplayName("GET /api/v1/portfolio/history — forwards period and from to the service")
+    @Test
+    void getPortfolioHistoryForwardsParams() throws Exception {
+        given(portfolioService.getHistory(eq(USER_ID), eq(HistoryPeriod.W1), eq(LocalDate.of(2026, 1, 1))))
+                .willReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/portfolio/history")
+                        .param("period", "1W")
+                        .param("from", "2026-01-01")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    @DisplayName("GET /api/v1/portfolio/history — 200 with empty array for a user with no trades")
+    @Test
+    void getPortfolioHistoryEmpty() throws Exception {
+        given(portfolioService.getHistory(USER_ID, HistoryPeriod.D1, null)).willReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/portfolio/history")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));

@@ -3,6 +3,8 @@ package ImiTrade.portfolio.domain;
 import ImiTrade.portfolio.dto.PortfolioResponse;
 import ImiTrade.stocks.domain.Stock;
 import ImiTrade.stocks.domain.StockRepository;
+import ImiTrade.stocks.service.StockHistoryService;
+import ImiTrade.transaction.domain.TransactionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +26,10 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link PortfolioService}. Repository access is mocked, so these
  * tests focus on pnl computation, DTO mapping and the empty-portfolio path.
+ *
+ * <p>The history-reconstruction logic (replaying transactions against MOEX candles)
+ * is covered separately by {@code PortfolioHistoryServiceTest}, which uses an
+ * explicit constructor so the new dependencies can be exercised directly.
  */
 @ExtendWith(MockitoExtension.class)
 class PortfolioServiceTest {
@@ -32,6 +39,15 @@ class PortfolioServiceTest {
 
     @Mock
     private StockRepository stockRepository;
+
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
+    private StockHistoryService stockHistoryService;
+
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private PortfolioService portfolioService;

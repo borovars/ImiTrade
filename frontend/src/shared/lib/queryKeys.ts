@@ -19,5 +19,10 @@ export const queryKeys = {
   stockHistory: (ticker: string, period: string, fromIso: string) =>
     ['stocks', 'history', ticker, period, fromIso] as const,
   portfolio: ['portfolio'] as const,
+  /** История стоимости портфеля для графика. Вкладывается в namespace `portfolio`,
+   *  поэтому инвалидация `queryKeys.portfolio` (prefix) в trading-мутациях
+   *  захватит и её — после сделки график обновится автоматически. Период — часть
+   *  ключа: разные периоды кэшируются независимо. */
+  portfolioHistory: (period: string) => ['portfolio', 'history', period] as const,
   transactions: ['transactions'] as const,
 };

@@ -18,6 +18,8 @@ export const API_ENDPOINTS = {
   },
   PORTFOLIO: {
     BASE: '/api/v1/portfolio',
+    /** История стоимости портфеля: GET /api/v1/portfolio/history?period=. */
+    HISTORY: '/api/v1/portfolio/history',
   },
   TRANSACTIONS: {
     BASE: '/api/v1/transactions',

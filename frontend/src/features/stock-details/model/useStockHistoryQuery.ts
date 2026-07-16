@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getStockHistory } from '../api/stockHistoryApi';
-import { HistoryPeriodCode, HistoryPoint } from './historyTypes';
+import { HistoryPeriodCode } from '@/shared/lib/chart/periods';
+import type { HistoryPoint } from '@/shared/lib/chart/historyPoint';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 /**
